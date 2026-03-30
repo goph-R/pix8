@@ -27,9 +27,11 @@
     position: absolute;
     z-index: 0;
     background-image:
-        linear-gradient(45deg, var(--checkerboard-dark) 25%, transparent 25%),
-        linear-gradient(-45deg, var(--checkerboard-dark) 25%, transparent 25%),
-        linear-gradient(45deg, transparent 75%, var(--checkerboard-dark) 75%),
-        linear-gradient(-45deg, transparent 75%, var(--checkerboard-dark) 75%);
+        conic-gradient(
+            var(--checkerboard-dark) 90deg,
+            var(--checkerboard-light) 90deg 180deg,
+            var(--checkerboard-dark) 180deg 270deg,
+            var(--checkerboard-light) 270deg
+        );
     background-color: var(--checkerboard-light);
 }
