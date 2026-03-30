@@ -13,7 +13,7 @@ export class MoveTool extends BaseTool {
     }
 
     getCursor() {
-        return 'move';
+        return 'grab';
     }
 
     onPointerDown(x, y, e) {

@@ -6,7 +6,7 @@ export class EraserTool extends BaseTool {
     constructor(doc, bus, canvasView) {
         super(doc, bus, canvasView);
         this.name = 'Eraser';
-        this.shortcut = 'G';
+        this.shortcut = 'E';
         this.icon = `<svg viewBox="0 0 20 20"><path d="M6 17h11M8.5 17l-5-5a2 2 0 010-2.8l7.2-7.2a2 2 0 012.8 0l3.5 3.5a2 2 0 010 2.8L10.5 15"/></svg>`;
         this._lastX = null;
         this._lastY = null;

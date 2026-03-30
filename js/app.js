@@ -1,7 +1,7 @@
 import { EventBus } from './EventBus.js';
 import { ImageDocument } from './model/ImageDocument.js';
 import { Brush } from './model/Brush.js';
-import { DEFAULT_DOC_WIDTH, DEFAULT_DOC_HEIGHT, ZOOM_LEVELS } from './constants.js';
+import { DEFAULT_DOC_WIDTH, DEFAULT_DOC_HEIGHT, ZOOM_LEVELS, TRANSPARENT } from './constants.js';
 
 import { CanvasView } from './ui/CanvasView.js';
 import { Toolbar } from './ui/Toolbar.js';
@@ -383,11 +383,9 @@ class App {
             '-',
             { label: 'Save Project (.pix8)', shortcut: 'Ctrl+S', action: () => this._saveProject() },
             '-',
-            { label: 'Import BMP...', action: () => this._importFile('bmp') },
-            { label: 'Import PCX...', action: () => this._importFile('pcx') },
-            '-',
-            { label: 'Import BMP as Layer...', action: () => this._importAsLayer('bmp') },
-            { label: 'Import PCX as Layer...', action: () => this._importAsLayer('pcx') },
+            { label: 'Import Image...', action: () => this._importFile() },
+            { label: 'Import as Layer...', action: () => this._importAsLayer() },
+            { label: 'Import Palette...', action: () => this._importPalette() },
             '-',
             { label: 'Export BMP', action: () => this._exportBMP() },
             { label: 'Export PCX', action: () => this._exportPCX() },
@@ -508,52 +506,131 @@ class App {
         this.bus.emit('document-changed');
     }
 
-    _importFile(type) {
+    _parseImageFile(file, callback, { askTransparency = true } = {}) {
+        const ext = file.name.split('.').pop().toLowerCase();
+        if (ext !== 'bmp' && ext !== 'pcx') {
+            alert('Unsupported format. Please use BMP or PCX files.');
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => {
+            try {
+                const doc = ext === 'bmp' ? importBMP(reader.result) : importPCX(reader.result);
+                if (askTransparency) {
+                    this._showTransparencyDialog((zeroIsTransparent) => {
+                        if (zeroIsTransparent) {
+                            this._convertZeroToTransparent(doc);
+                        }
+                        callback(doc, file);
+                    });
+                } else {
+                    callback(doc, file);
+                }
+            } catch (err) {
+                alert('Error importing file: ' + err.message);
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    }
+
+    _convertZeroToTransparent(doc) {
+        for (const layer of doc.layers) {
+            for (let i = 0; i < layer.data.length; i++) {
+                if (layer.data[i] === 0) layer.data[i] = TRANSPARENT;
+            }
+        }
+    }
+
+    _showTransparencyDialog(callback) {
+        const overlay = document.createElement('div');
+        overlay.style.cssText = `
+            position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+            display: flex; align-items: center; justify-content: center; z-index: 1000;
+        `;
+
+        const lastChoice = localStorage.getItem('pix8-zero-transparent') ?? 'no';
+
+        const dialog = document.createElement('div');
+        dialog.style.cssText = `
+            background: #2d2d30; border: 1px solid #555; border-radius: 6px;
+            padding: 20px; min-width: 300px; color: #ccc;
+        `;
+        dialog.innerHTML = `
+            <div style="font-size: 14px; margin-bottom: 16px; color: #fff;">Treat index 0 as transparent?</div>
+            <div style="font-size: 12px; color: #aaa; margin-bottom: 16px;">
+                If yes, all pixels with palette index 0 will become transparent.
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <button id="transp-yes" style="flex: 1; padding: 8px; background: ${lastChoice === 'yes' ? '#007acc' : '#3c3c3c'};
+                    border: 1px solid ${lastChoice === 'yes' ? '#007acc' : '#555'}; border-radius: 3px; color: #fff; cursor: pointer; font-size: 13px;">Yes</button>
+                <button id="transp-no" style="flex: 1; padding: 8px; background: ${lastChoice === 'no' ? '#007acc' : '#3c3c3c'};
+                    border: 1px solid ${lastChoice === 'no' ? '#007acc' : '#555'}; border-radius: 3px; color: #fff; cursor: pointer; font-size: 13px;">No</button>
+            </div>
+        `;
+
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+
+        const finish = (choice) => {
+            localStorage.setItem('pix8-zero-transparent', choice ? 'yes' : 'no');
+            overlay.remove();
+            callback(choice);
+        };
+
+        dialog.querySelector('#transp-yes').addEventListener('click', () => finish(true));
+        dialog.querySelector('#transp-no').addEventListener('click', () => finish(false));
+        dialog.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') finish(lastChoice === 'yes');
+            if (e.key === 'Escape') finish(lastChoice === 'no');
+        });
+        dialog.querySelector(lastChoice === 'yes' ? '#transp-yes' : '#transp-no').focus();
+    }
+
+    _importFile() {
         const input = document.createElement('input');
         input.type = 'file';
-        input.accept = type === 'bmp' ? '.bmp' : '.pcx';
+        input.accept = '.bmp,.pcx';
         input.addEventListener('change', () => {
-            const file = input.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = () => {
-                try {
-                    const newDoc = type === 'bmp' ? importBMP(reader.result) : importPCX(reader.result);
-                    this._replaceDocument(newDoc);
-                } catch (err) {
-                    alert('Error importing file: ' + err.message);
-                }
-            };
-            reader.readAsArrayBuffer(file);
+            if (!input.files[0]) return;
+            this._parseImageFile(input.files[0], (newDoc) => {
+                this._replaceDocument(newDoc);
+            });
         });
         input.click();
     }
 
-    _importAsLayer(type) {
+    _importAsLayer() {
         const input = document.createElement('input');
         input.type = 'file';
-        input.accept = type === 'bmp' ? '.bmp' : '.pcx';
+        input.accept = '.bmp,.pcx';
         input.addEventListener('change', () => {
-            const file = input.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = () => {
-                try {
-                    const tempDoc = type === 'bmp' ? importBMP(reader.result) : importPCX(reader.result);
-                    const importedLayer = tempDoc.getActiveLayer();
-                    // Name it after the file
-                    importedLayer.name = file.name.replace(/\.[^.]+$/, '');
-                    // Insert above active layer
-                    const insertIdx = this.doc.activeLayerIndex + 1;
-                    this.doc.layers.splice(insertIdx, 0, importedLayer);
-                    this.doc.activeLayerIndex = insertIdx;
-                    this.bus.emit('layer-changed');
-                    this.bus.emit('document-changed');
-                } catch (err) {
-                    alert('Error importing as layer: ' + err.message);
-                }
-            };
-            reader.readAsArrayBuffer(file);
+            if (!input.files[0]) return;
+            this._parseImageFile(input.files[0], (tempDoc, file) => {
+                const importedLayer = tempDoc.getActiveLayer();
+                importedLayer.name = file.name.replace(/\.[^.]+$/, '');
+                const insertIdx = this.doc.activeLayerIndex + 1;
+                this.doc.layers.splice(insertIdx, 0, importedLayer);
+                this.doc.activeLayerIndex = insertIdx;
+                this.bus.emit('layer-changed');
+                this.bus.emit('document-changed');
+            });
+        });
+        input.click();
+    }
+
+    _importPalette() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.bmp,.pcx';
+        input.addEventListener('change', () => {
+            if (!input.files[0]) return;
+            this._parseImageFile(input.files[0], (tempDoc) => {
+                this.doc.palette.import(tempDoc.palette.export());
+                this.bus.emit('palette-changed');
+                this.bus.emit('fg-color-changed');
+                this.bus.emit('bg-color-changed');
+                this.bus.emit('document-changed');
+            }, { askTransparency: false });
         });
         input.click();
     }

@@ -5,7 +5,7 @@ export class FilledEllipseTool extends BaseTool {
     constructor(doc, bus, canvasView) {
         super(doc, bus, canvasView);
         this.name = 'Filled Ellipse';
-        this.shortcut = 'Shift+E';
+        this.shortcut = 'Shift+O';
         this.icon = `<svg viewBox="0 0 20 20"><ellipse cx="10" cy="10" rx="8" ry="6" fill="currentColor" stroke="none"/></svg>`;
         this._startX = null;
         this._startY = null;

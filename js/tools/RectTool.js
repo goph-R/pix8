@@ -5,7 +5,7 @@ export class RectTool extends BaseTool {
     constructor(doc, bus, canvasView) {
         super(doc, bus, canvasView);
         this.name = 'Rectangle';
-        this.shortcut = 'R';
+        this.shortcut = 'U';
         this.icon = `<svg viewBox="0 0 20 20"><rect x="3" y="4" width="14" height="12" fill="none"/></svg>`;
         this._startX = null;
         this._startY = null;

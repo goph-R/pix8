@@ -28,12 +28,13 @@ Then open http://localhost:3000 in your browser.
 
 | Key | Action |
 |-----|--------|
+| V | Move tool |
 | B | Brush tool |
-| G | Eraser tool |
+| E | Eraser tool |
 | I | Color Picker tool |
 | L | Line tool |
-| R | Rectangle tool |
-| E | Ellipse tool |
+| U | Rectangle tool |
+| O | Ellipse tool |
 | X | Swap FG/BG colors |
 | 1 | Reset brush to default (1px) |
 | +/- | Zoom in/out |

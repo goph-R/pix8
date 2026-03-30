@@ -4,69 +4,183 @@ export class Toolbar {
         this.bus = bus;
         this.container = document.getElementById('toolbar-area');
         this.activeTool = null;
-        this._buttons = [];
+        this._buttons = []; // { btn, toolName, groupEl? }
+        this._openFlyout = null;
 
         this._render();
 
         this.bus.on('switch-tool', (name) => {
             this.setActiveTool(name);
         });
+
+        // Close flyout on click outside
+        document.addEventListener('pointerdown', (e) => {
+            if (this._openFlyout && !this._openFlyout.contains(e.target)) {
+                this._closeFlyout();
+            }
+        });
     }
 
     _render() {
-        // Insert tool buttons before the color-selector div
         const colorSelector = document.getElementById('color-selector');
 
-        // Group: Drawing tools
-        const drawingTools = ['Move', 'Brush', 'Eraser', 'Color Picker'];
-        // Group: Shape tools
-        const shapeTools = ['Line', 'Rectangle', 'Filled Rect', 'Ellipse', 'Filled Ellipse'];
-        // Group: Brush selectors
-        const selectorTools = ['Rect Brush Sel', 'Circle Brush Sel', 'Poly Brush Sel'];
+        // Items: either a tool name string, or a flyout group { tools: [...], label }
+        const layout = [
+            'Move', 'Brush', 'Eraser', 'Color Picker',
+            'sep',
+            'Line',
+            { tools: ['Rectangle', 'Filled Rect'], label: 'Rectangle' },
+            { tools: ['Ellipse', 'Filled Ellipse'], label: 'Ellipse' },
+            'sep',
+            { tools: ['Rect Brush Sel', 'Circle Brush Sel', 'Poly Brush Sel'], label: 'Brush Select' },
+        ];
 
-        const groups = [drawingTools, shapeTools, selectorTools];
-
-        for (let gi = 0; gi < groups.length; gi++) {
-            for (const toolName of groups[gi]) {
-                const tool = this.tools.find(t => t.name === toolName);
-                if (!tool) continue;
-
-                const btn = document.createElement('button');
-                btn.className = 'tool-btn';
-                btn.title = tool.name + (tool.shortcut ? ` (${tool.shortcut})` : '');
-                btn.innerHTML = tool.icon;
-
-                if (tool.shortcut && tool.shortcut.length === 1) {
-                    const hint = document.createElement('span');
-                    hint.className = 'shortcut-hint';
-                    hint.textContent = tool.shortcut;
-                    btn.appendChild(hint);
-                }
-
-                btn.addEventListener('click', () => {
-                    this.setActiveTool(tool.name);
-                });
-
-                this.container.insertBefore(btn, colorSelector);
-                this._buttons.push({ btn, toolName: tool.name });
-            }
-
-            // Add separator between groups (except after last)
-            if (gi < groups.length - 1) {
+        for (const item of layout) {
+            if (item === 'sep') {
                 const sep = document.createElement('div');
                 sep.className = 'toolbar-sep';
                 this.container.insertBefore(sep, colorSelector);
+                continue;
             }
+
+            if (typeof item === 'string') {
+                // Single tool button
+                const tool = this.tools.find(t => t.name === item);
+                if (!tool) continue;
+                const btn = this._createButton(tool);
+                btn.addEventListener('click', () => {
+                    this._closeFlyout();
+                    this.setActiveTool(tool.name);
+                });
+                this.container.insertBefore(btn, colorSelector);
+                this._buttons.push({ btn, toolName: tool.name });
+            } else {
+                // Flyout group
+                this._createFlyoutGroup(item, colorSelector);
+            }
+        }
+    }
+
+    _createButton(tool) {
+        const btn = document.createElement('button');
+        btn.className = 'tool-btn';
+        btn.title = tool.name + (tool.shortcut ? ` (${tool.shortcut})` : '');
+        btn.innerHTML = tool.icon;
+
+        if (tool.shortcut && tool.shortcut.length === 1) {
+            const hint = document.createElement('span');
+            hint.className = 'shortcut-hint';
+            hint.textContent = tool.shortcut;
+            btn.appendChild(hint);
+        }
+
+        return btn;
+    }
+
+    _createFlyoutGroup(group, colorSelector) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'tool-group';
+
+        // The main button shows the first tool (or the currently selected one from the group)
+        const firstTool = this.tools.find(t => t.name === group.tools[0]);
+        if (!firstTool) return;
+
+        const mainBtn = this._createButton(firstTool);
+        // Add triangle indicator
+        const tri = document.createElement('span');
+        tri.className = 'group-indicator';
+        tri.textContent = '\u25E2'; // small triangle
+        mainBtn.appendChild(tri);
+
+        wrapper.appendChild(mainBtn);
+
+        // Flyout panel
+        const flyout = document.createElement('div');
+        flyout.className = 'tool-flyout';
+
+        for (const toolName of group.tools) {
+            const tool = this.tools.find(t => t.name === toolName);
+            if (!tool) continue;
+
+            const flyBtn = this._createButton(tool);
+            // Add label text for flyout items
+            const label = document.createElement('span');
+            label.className = 'flyout-label';
+            label.textContent = tool.name;
+            flyBtn.classList.add('flyout-btn');
+            flyBtn.appendChild(label);
+
+            flyBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this._closeFlyout();
+                // Update the main button to show this tool's icon
+                this._updateGroupButton(mainBtn, tool);
+                this.setActiveTool(tool.name);
+            });
+
+            flyout.appendChild(flyBtn);
+            this._buttons.push({ btn: flyBtn, toolName: tool.name, mainBtn });
+        }
+
+        wrapper.appendChild(flyout);
+
+        mainBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (flyout === this._openFlyout) {
+                this._closeFlyout();
+            } else {
+                this._closeFlyout();
+                flyout.classList.add('open');
+                this._openFlyout = flyout;
+            }
+        });
+
+        this.container.insertBefore(wrapper, colorSelector);
+        // Also track the main button for active highlighting
+        this._buttons.push({ btn: mainBtn, toolName: firstTool.name, isGroupMain: true, groupTools: group.tools });
+    }
+
+    _updateGroupButton(mainBtn, tool) {
+        // Preserve the group indicator and shortcut hint, replace icon
+        const indicator = mainBtn.querySelector('.group-indicator');
+        mainBtn.innerHTML = tool.icon;
+        mainBtn.title = tool.name + (tool.shortcut ? ` (${tool.shortcut})` : '');
+        if (tool.shortcut && tool.shortcut.length === 1) {
+            const hint = document.createElement('span');
+            hint.className = 'shortcut-hint';
+            hint.textContent = tool.shortcut;
+            mainBtn.appendChild(hint);
+        }
+        mainBtn.appendChild(indicator);
+
+        // Update the main button's tracked tool name
+        for (const entry of this._buttons) {
+            if (entry.btn === mainBtn && entry.isGroupMain) {
+                entry.toolName = tool.name;
+                break;
+            }
+        }
+    }
+
+    _closeFlyout() {
+        if (this._openFlyout) {
+            this._openFlyout.classList.remove('open');
+            this._openFlyout = null;
         }
     }
 
     setActiveTool(name) {
-        for (const { btn, toolName } of this._buttons) {
-            btn.classList.toggle('active', toolName === name);
+        for (const entry of this._buttons) {
+            if (entry.isGroupMain) {
+                // Highlight if any tool in this group is active
+                const isActive = entry.groupTools.includes(name);
+                entry.btn.classList.toggle('active', isActive);
+            } else {
+                entry.btn.classList.toggle('active', entry.toolName === name);
+            }
         }
         const tool = this.tools.find(t => t.name === name);
         if (tool) {
-            // Deactivate previous tool if it has a deactivate method
             if (this.activeTool && this.activeTool.deactivate) {
                 this.activeTool.deactivate();
             }

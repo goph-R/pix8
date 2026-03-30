@@ -48,6 +48,72 @@
     color: rgba(255, 255, 255, 0.6);
 }
 
+/* Tool group with flyout */
+.tool-group {
+    position: relative;
+}
+
+.group-indicator {
+    position: absolute;
+    bottom: 1px;
+    left: 2px;
+    font-size: 6px;
+    color: var(--text-dim);
+    pointer-events: none;
+    line-height: 1;
+}
+
+.tool-btn.active .group-indicator {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.tool-flyout {
+    display: none;
+    position: absolute;
+    left: 100%;
+    top: 0;
+    margin-left: 2px;
+    background: var(--bg-panel);
+    border: 1px solid var(--border-light);
+    border-radius: 4px;
+    padding: 3px;
+    z-index: 100;
+    box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.4);
+    flex-direction: column;
+    gap: 2px;
+    white-space: nowrap;
+}
+
+.tool-flyout.open {
+    display: flex;
+}
+
+.tool-flyout .flyout-btn {
+    width: auto;
+    height: 30px;
+    padding: 0 8px 0 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 3px;
+}
+
+.tool-flyout .flyout-btn svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+}
+
+.flyout-label {
+    font-size: 11px;
+    color: var(--text);
+    pointer-events: none;
+}
+
+.tool-flyout .flyout-btn:hover .flyout-label {
+    color: var(--text-bright);
+}
+
 /* Toolbar separator */
 .toolbar-sep {
     width: 28px;

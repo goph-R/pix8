@@ -53,11 +53,18 @@ export class CanvasView {
 
     set activeTool(tool) {
         this._activeTool = tool;
+        this._updateCursor();
     }
 
     _setupResize() {
         const ro = new ResizeObserver(() => this._resize());
         ro.observe(this.container);
+    }
+
+    _updateCursor() {
+        if (this._activeTool) {
+            this.container.style.cursor = this._activeTool.getCursor();
+        }
     }
 
     _resize() {
@@ -100,7 +107,7 @@ export class CanvasView {
         document.addEventListener('keyup', (e) => {
             if (e.code === 'Space') {
                 this._spaceDown = false;
-                this.container.style.cursor = 'crosshair';
+                this._updateCursor();
             }
         });
     }
@@ -158,7 +165,7 @@ export class CanvasView {
     _onPointerUp(e) {
         if (this._isPanning) {
             this._isPanning = false;
-            this.container.style.cursor = this._spaceDown ? 'grab' : 'crosshair';
+            this.container.style.cursor = this._spaceDown ? 'grab' : (this._activeTool ? this._activeTool.getCursor() : 'crosshair');
             return;
         }
 

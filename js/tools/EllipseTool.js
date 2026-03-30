@@ -5,7 +5,7 @@ export class EllipseTool extends BaseTool {
     constructor(doc, bus, canvasView) {
         super(doc, bus, canvasView);
         this.name = 'Ellipse';
-        this.shortcut = 'E';
+        this.shortcut = 'O';
         this.icon = `<svg viewBox="0 0 20 20"><ellipse cx="10" cy="10" rx="8" ry="6" fill="none"/></svg>`;
         this._startX = null;
         this._startY = null;
