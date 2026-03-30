@@ -50,7 +50,12 @@ export class EraserTool extends BaseTool {
             for (let bx = 0; bx < brush.width; bx++) {
                 const idx = brush.data[by * brush.width + bx];
                 if (idx === TRANSPARENT) continue;
-                layer.setPixel(x + bx - ox, y + by - oy, TRANSPARENT);
+                const docX = x + bx - ox;
+                const docY = y + by - oy;
+                // Translate doc coords to layer-local
+                const lx = docX - layer.offsetX;
+                const ly = docY - layer.offsetY;
+                layer.setPixel(lx, ly, TRANSPARENT);
             }
         }
     }
