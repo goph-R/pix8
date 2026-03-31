@@ -69,49 +69,62 @@ export class LayersPanel {
     _drawThumbnail(canvas, layer) {
         const ctx = canvas.getContext('2d');
         ctx.imageSmoothingEnabled = false;
+        ctx.clearRect(0, 0, 32, 32);
 
-        // Create a tiny ImageData from the layer
-        const imgData = new ImageData(layer.width, layer.height);
+        const docW = this.doc.width;
+        const docH = this.doc.height;
+
+        // Fit document ratio into 32x32 thumbnail
+        const scale = Math.min(32 / docW, 32 / docH);
+        const dw = Math.round(docW * scale);
+        const dh = Math.round(docH * scale);
+        const dx = Math.round((32 - dw) / 2);
+        const dy = Math.round((32 - dh) / 2);
+
+        // Visible portion of the layer within document bounds
+        const lx0 = Math.max(0, layer.offsetX);
+        const ly0 = Math.max(0, layer.offsetY);
+        const lx1 = Math.min(docW, layer.offsetX + layer.width);
+        const ly1 = Math.min(docH, layer.offsetY + layer.height);
+        const vw = lx1 - lx0;
+        const vh = ly1 - ly0;
+        if (vw <= 0 || vh <= 0) return;
+
+        const imgData = new ImageData(vw, vh);
         const buf = imgData.data;
-        for (let i = 0; i < layer.width * layer.height; i++) {
-            const colorIndex = layer.data[i];
-            if (colorIndex > 255) continue;
-            const [r, g, b] = this.doc.palette.getColor(colorIndex);
-            const off = i * 4;
-            buf[off] = r;
-            buf[off + 1] = g;
-            buf[off + 2] = b;
-            buf[off + 3] = 255;
+        for (let y = 0; y < vh; y++) {
+            for (let x = 0; x < vw; x++) {
+                const lx = (lx0 - layer.offsetX) + x;
+                const ly = (ly0 - layer.offsetY) + y;
+                const colorIndex = layer.data[ly * layer.width + lx];
+                if (colorIndex > 255) continue;
+                const [r, g, b] = this.doc.palette.getColor(colorIndex);
+                const off = (y * vw + x) * 4;
+                buf[off] = r;
+                buf[off + 1] = g;
+                buf[off + 2] = b;
+                buf[off + 3] = 255;
+            }
         }
 
-        // Draw at 1:1 to an offscreen canvas, then scale to thumbnail
         const tmp = document.createElement('canvas');
-        tmp.width = layer.width;
-        tmp.height = layer.height;
+        tmp.width = vw;
+        tmp.height = vh;
         tmp.getContext('2d').putImageData(imgData, 0, 0);
 
-        ctx.clearRect(0, 0, 32, 32);
-        ctx.drawImage(tmp, 0, 0, 32, 32);
+        // Draw the visible portion at its correct position within the thumbnail
+        ctx.drawImage(tmp, 0, 0, vw, vh,
+            dx + Math.round(lx0 * scale), dy + Math.round(ly0 * scale),
+            Math.round(vw * scale) || 1, Math.round(vh * scale) || 1);
     }
 
     _startRename(nameEl, layer) {
-        const input = document.createElement('input');
-        input.className = 'layer-name-input';
-        input.value = layer.name;
-        nameEl.replaceWith(input);
-        input.focus();
-        input.select();
-
-        const finish = () => {
-            layer.name = input.value || layer.name;
-            this.render();
-        };
-
-        input.addEventListener('blur', finish);
-        input.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') input.blur();
-            if (e.key === 'Escape') { input.value = layer.name; input.blur(); }
-        });
+        const result = prompt('Rename layer:', layer.name);
+        if (result === null) return;
+        const trimmed = result.trim();
+        if (!trimmed) return;
+        layer.name = trimmed;
+        this.render();
     }
 
     _addLayer() {
@@ -120,6 +133,8 @@ export class LayersPanel {
     }
 
     _deleteLayer() {
+        const layer = this.doc.layers[this.doc.activeLayerIndex];
+        if (!confirm(`Delete layer "${layer.name}"?`)) return;
         if (this.doc.removeLayer(this.doc.activeLayerIndex)) {
             this.bus.emit('layer-changed');
         }

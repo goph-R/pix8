@@ -84,5 +84,4 @@
     display: flex;
     padding: 4px 6px;
     gap: 4px;
-    border-top: 1px solid var(--border);
 }
