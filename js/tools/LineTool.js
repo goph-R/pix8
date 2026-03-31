@@ -16,10 +16,16 @@ export class LineTool extends BaseTool {
         this._startY = y;
     }
 
+    onHover(x, y) {
+        this.canvasView.drawBrushPreview(x, y);
+    }
+
     onPointerMove(x, y, e) {
         if (this._startX === null) return;
         this.canvasView.clearOverlay();
-        this.canvasView.drawOverlayLine(this._startX, this._startY, x, y);
+        bresenhamLine(this._startX, this._startY, x, y, (px, py) => {
+            this.previewBrush(px, py);
+        });
     }
 
     onPointerUp(x, y, e) {

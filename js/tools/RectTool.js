@@ -16,10 +16,16 @@ export class RectTool extends BaseTool {
         this._startY = y;
     }
 
+    onHover(x, y) {
+        this.canvasView.drawBrushPreview(x, y);
+    }
+
     onPointerMove(x, y, e) {
         if (this._startX === null) return;
         this.canvasView.clearOverlay();
-        this.canvasView.drawOverlayRect(this._startX, this._startY, x, y);
+        rectOutline(this._startX, this._startY, x, y, (px, py) => {
+            this.previewBrush(px, py);
+        });
     }
 
     onPointerUp(x, y, e) {

@@ -351,6 +351,13 @@ class App {
                 return;
             }
 
+            // Ctrl+B = set brush from selection
+            if (e.ctrlKey && !e.shiftKey && e.key === 'b') {
+                e.preventDefault();
+                this._setBrushFromSelection();
+                return;
+            }
+
             // Ctrl+S = save project
             if (e.ctrlKey && e.key === 's') {
                 e.preventDefault();
@@ -512,6 +519,8 @@ class App {
             }},
             '-',
             { label: 'Clear', shortcut: 'Delete', action: () => this._clearSelection() },
+            '-',
+            { label: 'Set Brush from Selection', shortcut: 'Ctrl+B', action: () => this._setBrushFromSelection() },
         ]);
     }
 
@@ -608,6 +617,38 @@ class App {
         }
         this.undoManager.endOperation();
         this.bus.emit('layer-changed');
+    }
+
+    _setBrushFromSelection() {
+        const sel = this.doc.selection;
+        if (!sel.active) {
+            alert('No selection');
+            return;
+        }
+        const copied = sel.copyPixels(this.doc.getActiveLayer());
+        if (!copied) return;
+
+        const brush = new Brush(copied.width, copied.height, copied.data, true);
+        // Find center of the mask for origin
+        let cx = 0, cy = 0, count = 0;
+        for (let y = 0; y < copied.height; y++) {
+            for (let x = 0; x < copied.width; x++) {
+                if (copied.mask[y * copied.width + x]) {
+                    cx += x; cy += y; count++;
+                }
+            }
+        }
+        brush.originX = Math.round(cx / count);
+        brush.originY = Math.round(cy / count);
+
+        // Mark unselected pixels as TRANSPARENT in brush data
+        for (let i = 0; i < copied.width * copied.height; i++) {
+            if (!copied.mask[i]) brush.data[i] = TRANSPARENT;
+        }
+
+        this.doc.activeBrush = brush;
+        this.bus.emit('brush-changed');
+        this.bus.emit('switch-tool', 'Brush');
     }
 
     _showViewMenu() {

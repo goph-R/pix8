@@ -11,6 +11,10 @@ export class BrushTool extends BaseTool {
         this._lastY = null;
     }
 
+    onHover(x, y) {
+        this.canvasView.drawBrushPreview(x, y);
+    }
+
     onPointerDown(x, y, e) {
         const layer = this.doc.getActiveLayer();
         if (layer.locked) return;

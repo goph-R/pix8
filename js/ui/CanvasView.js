@@ -1,4 +1,4 @@
-import { ZOOM_LEVELS } from '../constants.js';
+import { ZOOM_LEVELS, TRANSPARENT } from '../constants.js';
 import { Renderer } from '../render/Renderer.js';
 import { GridOverlay } from '../render/GridOverlay.js';
 
@@ -65,6 +65,8 @@ export class CanvasView {
         this._activeTool = tool;
         if (tool && tool.onHover) {
             tool.onHover(this._lastDocX, this._lastDocY);
+        } else {
+            this.clearOverlay();
         }
         this._updateCursor();
     }
@@ -111,7 +113,10 @@ export class CanvasView {
         this.container.addEventListener('pointerdown', (e) => this._onPointerDown(e));
         this.container.addEventListener('pointermove', (e) => this._onPointerMove(e));
         this.container.addEventListener('pointerup', (e) => this._onPointerUp(e));
-        this.container.addEventListener('pointerleave', (e) => this._onPointerUp(e));
+        this.container.addEventListener('pointerleave', (e) => {
+            this._onPointerUp(e);
+            this.clearOverlay();
+        });
         this.container.addEventListener('wheel', (e) => this._onWheel(e), { passive: false });
         this.container.addEventListener('contextmenu', (e) => e.preventDefault());
 
@@ -238,6 +243,29 @@ export class CanvasView {
         this.render();
     }
 
+    drawBrushPreview(docX, docY) {
+        this.clearOverlay();
+        const brush = this.doc.activeBrush;
+        const { zoom, panX, panY } = this;
+        const ctx = this.overlayCtx;
+        const ox = brush.originX;
+        const oy = brush.originY;
+
+        for (let by = 0; by < brush.height; by++) {
+            for (let bx = 0; bx < brush.width; bx++) {
+                const idx = brush.data[by * brush.width + bx];
+                if (idx === TRANSPARENT) continue;
+                const dx = docX + bx - ox;
+                const dy = docY + by - oy;
+                if (dx < 0 || dx >= this.doc.width || dy < 0 || dy >= this.doc.height) continue;
+                const colorIndex = brush.isCaptured ? idx : this.doc.fgColorIndex;
+                const [r, g, b] = this.doc.palette.getColor(colorIndex);
+                ctx.fillStyle = `rgba(${r},${g},${b},0.8)`;
+                ctx.fillRect(panX + dx * zoom, panY + dy * zoom, zoom, zoom);
+            }
+        }
+    }
+
     clearOverlay() {
         this.overlayCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
     }
@@ -332,6 +360,11 @@ export class CanvasView {
         // Redraw marching ants to stay in sync with pan/zoom
         if (this.doc.selection.active) {
             this._drawMarchingAnts();
+        }
+
+        // Redraw brush preview if the active tool supports it
+        if (this._activeTool && this._activeTool.onHover && !this._pointerDown) {
+            this._activeTool.onHover(this._lastDocX, this._lastDocY);
         }
     }
 

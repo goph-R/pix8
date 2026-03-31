@@ -16,14 +16,20 @@ export class EllipseTool extends BaseTool {
         this._startY = y;
     }
 
+    onHover(x, y) {
+        this.canvasView.drawBrushPreview(x, y);
+    }
+
     onPointerMove(x, y, e) {
         if (this._startX === null) return;
         this.canvasView.clearOverlay();
         const cx = Math.round((this._startX + x) / 2);
         const cy = Math.round((this._startY + y) / 2);
-        const rx = Math.abs(x - this._startX) / 2;
-        const ry = Math.abs(y - this._startY) / 2;
-        this.canvasView.drawOverlayEllipse(cx, cy, rx, ry);
+        const rx = Math.round(Math.abs(x - this._startX) / 2);
+        const ry = Math.round(Math.abs(y - this._startY) / 2);
+        ellipseOutline(cx, cy, rx, ry, (px, py) => {
+            this.previewBrush(px, py);
+        });
     }
 
     onPointerUp(x, y, e) {

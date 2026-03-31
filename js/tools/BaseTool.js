@@ -18,6 +18,31 @@ export class BaseTool {
         return 'crosshair';
     }
 
+    previewBrush(x, y) {
+        const brush = this.doc.activeBrush;
+        const ox = brush.originX;
+        const oy = brush.originY;
+        const docW = this.doc.width;
+        const docH = this.doc.height;
+        const { zoom, panX, panY } = this.canvasView;
+        const ctx = this.canvasView.overlayCtx;
+
+        for (let by = 0; by < brush.height; by++) {
+            for (let bx = 0; bx < brush.width; bx++) {
+                const idx = brush.data[by * brush.width + bx];
+                if (idx === TRANSPARENT) continue;
+                const docX = x + bx - ox;
+                const docY = y + by - oy;
+                if (docX < 0 || docX >= docW || docY < 0 || docY >= docH) continue;
+                if (this.doc.selection.active && !this.doc.selection.isSelected(docX, docY)) continue;
+                const colorIndex = brush.isCaptured ? idx : this.doc.fgColorIndex;
+                const [r, g, b] = this.doc.palette.getColor(colorIndex);
+                ctx.fillStyle = `rgba(${r},${g},${b},0.8)`;
+                ctx.fillRect(panX + docX * zoom, panY + docY * zoom, zoom, zoom);
+            }
+        }
+    }
+
     stampBrush(layer, x, y) {
         const brush = this.doc.activeBrush;
         const ox = brush.originX;
