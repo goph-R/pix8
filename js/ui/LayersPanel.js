@@ -35,6 +35,12 @@ export class LayersPanel {
                 layer.visible = !layer.visible;
                 this.bus.emit('layer-changed');
             });
+            vis.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                for (const l of this.doc.layers) l.visible = (l === layer);
+                this.bus.emit('layer-changed');
+            });
 
             // Thumbnail
             const thumb = document.createElement('canvas');
