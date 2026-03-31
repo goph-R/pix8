@@ -136,13 +136,14 @@ class App {
 
         // Toolbar
         this.toolbar = new Toolbar(tools, this.bus);
-        this.toolbar.setActiveTool('Brush');
 
-        // Wire active tool to canvas view
+        // Wire active tool to canvas view (must be before setActiveTool)
         this.bus.on('tool-changed', (tool) => {
             this.canvasView.activeTool = tool;
             document.getElementById('status-tool').textContent = tool.name;
         });
+
+        this.toolbar.setActiveTool('Brush');
 
         // UI panels
         this.colorSelector = new ColorSelector(this.doc, this.bus);
