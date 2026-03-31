@@ -45,9 +45,17 @@ export class EraserTool extends BaseTool {
         const brush = this.doc.activeBrush;
         const ox = brush.originX;
         const oy = brush.originY;
+        const docW = this.doc.width;
+        const docH = this.doc.height;
 
-        for (let by = 0; by < brush.height; by++) {
-            for (let bx = 0; bx < brush.width; bx++) {
+        // Clamp brush footprint to document bounds
+        const startBx = Math.max(0, -x + ox);
+        const startBy = Math.max(0, -y + oy);
+        const endBx = Math.min(brush.width, docW - x + ox);
+        const endBy = Math.min(brush.height, docH - y + oy);
+
+        for (let by = startBy; by < endBy; by++) {
+            for (let bx = startBx; bx < endBx; bx++) {
                 const idx = brush.data[by * brush.width + bx];
                 if (idx === TRANSPARENT) continue;
                 const docX = x + bx - ox;
