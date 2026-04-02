@@ -7,12 +7,14 @@ export class Selection {
         this.mask = new Uint8Array(width * height);
         this.active = false;
         this.floating = null; // { data, mask, width, height, originX, originY }
+        this._resizeSource = null; // { mask, minX, minY, w, h }
     }
 
     clear() {
         this.active = false;
         this.mask.fill(0);
         this.floating = null;
+        this._resizeSource = null;
     }
 
     isSelected(docX, docY) {
@@ -21,6 +23,7 @@ export class Selection {
     }
 
     selectRect(x0, y0, x1, y1) {
+        this._resizeSource = null;
         this.mask.fill(0);
         const minX = Math.max(0, Math.min(x0, x1));
         const minY = Math.max(0, Math.min(y0, y1));
@@ -35,6 +38,7 @@ export class Selection {
     }
 
     selectEllipse(x0, y0, x1, y1) {
+        this._resizeSource = null;
         this.mask.fill(0);
         const minX = Math.max(0, Math.min(x0, x1));
         const minY = Math.max(0, Math.min(y0, y1));
@@ -59,7 +63,90 @@ export class Selection {
         this.active = true;
     }
 
+    addRect(x0, y0, x1, y1) {
+        this._resizeSource = null;
+        const minX = Math.max(0, Math.min(x0, x1));
+        const minY = Math.max(0, Math.min(y0, y1));
+        const maxX = Math.min(this.width - 1, Math.max(x0, x1));
+        const maxY = Math.min(this.height - 1, Math.max(y0, y1));
+        for (let y = minY; y <= maxY; y++) {
+            for (let x = minX; x <= maxX; x++) {
+                this.mask[y * this.width + x] = 1;
+            }
+        }
+        this.active = true;
+    }
+
+    subtractRect(x0, y0, x1, y1) {
+        this._resizeSource = null;
+        const minX = Math.max(0, Math.min(x0, x1));
+        const minY = Math.max(0, Math.min(y0, y1));
+        const maxX = Math.min(this.width - 1, Math.max(x0, x1));
+        const maxY = Math.min(this.height - 1, Math.max(y0, y1));
+        for (let y = minY; y <= maxY; y++) {
+            for (let x = minX; x <= maxX; x++) {
+                this.mask[y * this.width + x] = 0;
+            }
+        }
+        if (!this.mask.includes(1)) {
+            this.active = false;
+        }
+    }
+
+    addEllipse(x0, y0, x1, y1) {
+        this._resizeSource = null;
+        const minX = Math.max(0, Math.min(x0, x1));
+        const minY = Math.max(0, Math.min(y0, y1));
+        const maxX = Math.min(this.width - 1, Math.max(x0, x1));
+        const maxY = Math.min(this.height - 1, Math.max(y0, y1));
+        const cx = (minX + maxX) / 2;
+        const cy = (minY + maxY) / 2;
+        const rx = (maxX - minX) / 2;
+        const ry = (maxY - minY) / 2;
+        if (rx <= 0 || ry <= 0) return;
+        const erx = rx + 0.5;
+        const ery = ry + 0.5;
+        for (let y = minY; y <= maxY; y++) {
+            for (let x = minX; x <= maxX; x++) {
+                const dx = (x - cx) / erx;
+                const dy = (y - cy) / ery;
+                if (dx * dx + dy * dy <= 1) {
+                    this.mask[y * this.width + x] = 1;
+                }
+            }
+        }
+        this.active = true;
+    }
+
+    subtractEllipse(x0, y0, x1, y1) {
+        this._resizeSource = null;
+        const minX = Math.max(0, Math.min(x0, x1));
+        const minY = Math.max(0, Math.min(y0, y1));
+        const maxX = Math.min(this.width - 1, Math.max(x0, x1));
+        const maxY = Math.min(this.height - 1, Math.max(y0, y1));
+        const cx = (minX + maxX) / 2;
+        const cy = (minY + maxY) / 2;
+        const rx = (maxX - minX) / 2;
+        const ry = (maxY - minY) / 2;
+        if (rx <= 0 || ry <= 0) return;
+        const erx = rx + 0.5;
+        const ery = ry + 0.5;
+        for (let y = minY; y <= maxY; y++) {
+            for (let x = minX; x <= maxX; x++) {
+                const dx = (x - cx) / erx;
+                const dy = (y - cy) / ery;
+                if (dx * dx + dy * dy <= 1) {
+                    this.mask[y * this.width + x] = 0;
+                }
+            }
+        }
+        if (!this.mask.includes(1)) {
+            this.active = false;
+        }
+    }
+
     selectAll() {
+        this._resizeSource = null;
         this.mask.fill(1);
         this.active = true;
     }
@@ -196,7 +283,48 @@ export class Selection {
         return f && localX >= 0 && localX < f.width && localY >= 0 && localY < f.height && f.mask[localY * f.width + localX];
     }
 
+    saveResizeSource() {
+        if (this._resizeSource) return; // keep original across multiple resizes
+        const bounds = this.getBounds();
+        if (!bounds) { this._resizeSource = null; return; }
+        const { minX, minY, maxX, maxY } = bounds;
+        const w = maxX - minX + 1;
+        const h = maxY - minY + 1;
+        const mask = new Uint8Array(w * h);
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                mask[y * w + x] = this.mask[(minY + y) * this.width + (minX + x)];
+            }
+        }
+        this._resizeSource = { mask, minX, minY, w, h };
+    }
+
+    applyResize(newMinX, newMinY, newMaxX, newMaxY) {
+        const src = this._resizeSource;
+        if (!src) return;
+        const nw = newMaxX - newMinX + 1;
+        const nh = newMaxY - newMinY + 1;
+        if (nw <= 0 || nh <= 0) return;
+
+        this.mask.fill(0);
+        for (let y = 0; y < nh; y++) {
+            for (let x = 0; x < nw; x++) {
+                const docX = newMinX + x;
+                const docY = newMinY + y;
+                if (docX < 0 || docX >= this.width || docY < 0 || docY >= this.height) continue;
+                // Map back to source mask via nearest-neighbor
+                const sx = Math.floor(x * src.w / nw);
+                const sy = Math.floor(y * src.h / nh);
+                if (src.mask[sy * src.w + sx]) {
+                    this.mask[docY * this.width + docX] = 1;
+                }
+            }
+        }
+        this.active = this.mask.includes(1);
+    }
+
     moveMask(dx, dy) {
+        this._resizeSource = null;
         if (dx === 0 && dy === 0) return;
         const { width, height, mask } = this;
         const newMask = new Uint8Array(width * height);
@@ -251,6 +379,7 @@ export class Selection {
         }
 
         this.floating = null;
+        this._resizeSource = null;
     }
 
     resize(width, height) {

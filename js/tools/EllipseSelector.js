@@ -7,12 +7,12 @@ const HANDLE_CURSORS = {
     'e': 'ew-resize', 'w': 'ew-resize',
 };
 
-export class RectBrushSelector extends BaseTool {
+export class EllipseSelector extends BaseTool {
     constructor(doc, bus, canvasView) {
         super(doc, bus, canvasView);
-        this.name = 'Rect Select';
-        this.shortcut = 'M';
-        this.icon = `<svg viewBox="0 0 20 20"><rect x="3" y="4" width="14" height="12" fill="none" stroke-dasharray="2,2"/></svg>`;
+        this.name = 'Ellipse Select';
+        this.shortcut = '';
+        this.icon = `<svg viewBox="0 0 20 20"><ellipse cx="10" cy="10" rx="8" ry="5" fill="none" stroke-dasharray="2,2"/></svg>`;
         this.showsResizeHandles = true;
         this._startX = null;
         this._startY = null;
@@ -20,6 +20,7 @@ export class RectBrushSelector extends BaseTool {
         this._resizing = false;
         this._resizeHandle = null;
         this._resizeBounds = null;
+        this._selectionMode = 'replace';
         this._hoveringSelection = false;
         this._hoverHandle = null;
     }
@@ -39,33 +40,38 @@ export class RectBrushSelector extends BaseTool {
 
     onPointerDown(x, y, e) {
         const sel = this.doc.selection;
+
+        if (e.shiftKey) {
+            this._selectionMode = 'add';
+        } else if (e.altKey) {
+            this._selectionMode = 'subtract';
+        } else {
+            this._selectionMode = 'replace';
+        }
+
         if (sel.hasFloating()) {
             sel.commitFloating(this.doc.getActiveLayer());
         }
 
-        const handle = this.canvasView.hitTestResizeHandle();
-        if (handle) {
-            this._resizing = true;
-            this._resizeHandle = handle;
-            this._resizeBounds = sel.getBounds();
-            this._startX = x;
-            this._startY = y;
-            return;
+        if (this._selectionMode === 'replace') {
+            const handle = this.canvasView.hitTestResizeHandle();
+            if (handle) {
+                this._resizing = true;
+                this._resizeHandle = handle;
+                this._resizeBounds = sel.getBounds();
+                sel.saveResizeSource();
+                this._startX = x;
+                this._startY = y;
+                return;
+            }
+
+            if (sel.active && sel.isSelected(x, y)) {
+                this._moving = true;
+            }
         }
 
-        if (sel.active && sel.isSelected(x, y)) {
-            this._moving = true;
-        }
         this._startX = x;
         this._startY = y;
-    }
-
-    _constrain(x, y, e) {
-        if (!e.shiftKey) return { x, y };
-        const dx = x - this._startX;
-        const dy = y - this._startY;
-        const side = Math.max(Math.abs(dx), Math.abs(dy));
-        return { x: this._startX + side * Math.sign(dx || 1), y: this._startY + side * Math.sign(dy || 1) };
     }
 
     _computeResizeBounds(x, y) {
@@ -85,13 +91,27 @@ export class RectBrushSelector extends BaseTool {
         return { x0, y0, x1, y1 };
     }
 
+    _drawEllipsePreview(x0, y0, x1, y1) {
+        const cx = (x0 + x1) / 2;
+        const cy = (y0 + y1) / 2;
+        const rx = (x1 - x0) / 2;
+        const ry = (y1 - y0) / 2;
+        if (rx > 0 && ry > 0) {
+            this.canvasView.drawOverlayEllipse(cx, cy, rx, ry, this._overlayColor());
+        }
+    }
+
+    _overlayColor() {
+        return this._selectionMode === 'subtract' ? 'rgba(255, 80, 80, 0.8)' : 'rgba(0, 200, 255, 0.8)';
+    }
+
     onPointerMove(x, y, e) {
         if (this._startX === null) return;
 
         if (this._resizing) {
             const { x0, y0, x1, y1 } = this._computeResizeBounds(x, y);
             this.canvasView.clearOverlay();
-            this.canvasView.drawOverlayRect(x0, y0, x1, y1, 'rgba(0, 200, 255, 0.8)');
+            this.canvasView.drawOverlayRect(x0, y0, x1, y1, this._overlayColor());
             return;
         }
 
@@ -107,9 +127,12 @@ export class RectBrushSelector extends BaseTool {
             }
             return;
         }
-        const c = this._constrain(x, y, e);
         this.canvasView.clearOverlay();
-        this.canvasView.drawOverlayRect(this._startX, this._startY, c.x, c.y, 'rgba(0, 200, 255, 0.8)');
+        const minX = Math.min(this._startX, x);
+        const minY = Math.min(this._startY, y);
+        const maxX = Math.max(this._startX, x);
+        const maxY = Math.max(this._startY, y);
+        this._drawEllipsePreview(minX, minY, maxX, maxY);
     }
 
     onPointerUp(x, y, e) {
@@ -124,7 +147,7 @@ export class RectBrushSelector extends BaseTool {
             this._startY = null;
             this.canvasView.clearOverlay();
             if (x1 >= x0 && y1 >= y0) {
-                this.doc.selection.selectRect(x0, y0, x1, y1);
+                this.doc.selection.applyResize(x0, y0, x1, y1);
                 this.canvasView.invalidateSelectionEdges();
                 this.bus.emit('selection-changed');
             }
@@ -140,31 +163,33 @@ export class RectBrushSelector extends BaseTool {
 
         this.canvasView.clearOverlay();
 
-        // Click with no drag = deselect
-        if (x === this._startX && y === this._startY) {
-            this._startX = null;
-            this._startY = null;
-            const sel = this.doc.selection;
-            if (sel.active) {
-                if (sel.hasFloating()) sel.commitFloating(this.doc.getActiveLayer());
-                sel.clear();
-                this.bus.emit('selection-changed');
+        const x0 = this._startX;
+        const y0 = this._startY;
+        this._startX = null;
+        this._startY = null;
+
+        // Click with no drag = deselect (only in replace mode)
+        if (x0 === x && y0 === y) {
+            if (this._selectionMode === 'replace') {
+                const sel = this.doc.selection;
+                if (sel.active) {
+                    if (sel.hasFloating()) sel.commitFloating(this.doc.getActiveLayer());
+                    sel.clear();
+                    this.bus.emit('selection-changed');
+                }
             }
             return;
         }
 
-        const c = this._constrain(x, y, e);
-        const minX = Math.max(0, Math.min(this._startX, c.x));
-        const minY = Math.max(0, Math.min(this._startY, c.y));
-        const maxX = Math.min(this.doc.width - 1, Math.max(this._startX, c.x));
-        const maxY = Math.min(this.doc.height - 1, Math.max(this._startY, c.y));
-
-        this._startX = null;
-        this._startY = null;
-
-        if (maxX - minX < 0 || maxY - minY < 0) return;
-
-        this.doc.selection.selectRect(minX, minY, maxX, maxY);
+        const sel = this.doc.selection;
+        if (this._selectionMode === 'add') {
+            sel.addEllipse(x0, y0, x, y);
+        } else if (this._selectionMode === 'subtract') {
+            sel.subtractEllipse(x0, y0, x, y);
+        } else {
+            sel.selectEllipse(x0, y0, x, y);
+        }
+        this.canvasView.invalidateSelectionEdges();
         this.bus.emit('selection-changed');
     }
 }

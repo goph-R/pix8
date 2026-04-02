@@ -18,8 +18,8 @@ import { FilledRectTool } from './tools/FilledRectTool.js';
 import { EllipseTool } from './tools/EllipseTool.js';
 import { FilledEllipseTool } from './tools/FilledEllipseTool.js';
 import { FillTool } from './tools/FillTool.js';
-import { RectBrushSelector } from './tools/RectBrushSelector.js';
-import { CircleBrushSelector } from './tools/CircleBrushSelector.js';
+import { RectSelector } from './tools/RectSelector.js';
+import { EllipseSelector } from './tools/EllipseSelector.js';
 import { EraserTool } from './tools/EraserTool.js';
 import { ColorPickerTool } from './tools/ColorPickerTool.js';
 import { MoveTool } from './tools/MoveTool.js';
@@ -131,8 +131,8 @@ class App {
             new EllipseTool(this.doc, this.bus, this.canvasView),
             new FilledEllipseTool(this.doc, this.bus, this.canvasView),
             new FillTool(this.doc, this.bus, this.canvasView),
-            new RectBrushSelector(this.doc, this.bus, this.canvasView),
-            new CircleBrushSelector(this.doc, this.bus, this.canvasView),
+            new RectSelector(this.doc, this.bus, this.canvasView),
+            new EllipseSelector(this.doc, this.bus, this.canvasView),
         ];
 
         // Toolbar
