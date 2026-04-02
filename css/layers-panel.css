@@ -32,6 +32,12 @@
     border-color: var(--accent);
 }
 
+.layer-item.selected {
+    background: var(--bg-input);
+    border-color: var(--accent);
+    border-style: dashed;
+}
+
 .layer-visibility {
     width: 18px;
     height: 18px;

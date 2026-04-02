@@ -1,5 +1,6 @@
 import { EventBus } from './EventBus.js';
 import { ImageDocument } from './model/ImageDocument.js';
+import { Layer } from './model/Layer.js';
 import { Brush } from './model/Brush.js';
 import { DEFAULT_DOC_WIDTH, DEFAULT_DOC_HEIGHT, ZOOM_LEVELS, TRANSPARENT } from './constants.js';
 
@@ -24,6 +25,7 @@ import { FreeTransformTool } from './tools/FreeTransformTool.js';
 import { EraserTool } from './tools/EraserTool.js';
 import { ColorPickerTool } from './tools/ColorPickerTool.js';
 import { MoveTool } from './tools/MoveTool.js';
+import { MirrorTool } from './tools/MirrorTool.js';
 
 import {
     savePix8, loadPix8,
@@ -135,6 +137,7 @@ class App {
             new RectSelector(this.doc, this.bus, this.canvasView),
             new EllipseSelector(this.doc, this.bus, this.canvasView),
             new FreeTransformTool(this.doc, this.bus, this.canvasView),
+            new MirrorTool(this.doc, this.bus, this.canvasView),
         ];
 
         this._freeTransformTool = tools.find(t => t.name === 'Free Transform');
@@ -151,6 +154,10 @@ class App {
             }
             this.canvasView.activeTool = tool;
             document.getElementById('status-tool').textContent = tool.name;
+            document.getElementById('status-hint').textContent = this._getToolHint(tool.name);
+            if (tool.activate && tool !== ft) {
+                tool.activate();
+            }
             // Auto-activate free transform when selected from toolbar/shortcut
             if (tool === ft && !ft.isTransformActive) {
                 const sel = this.doc.selection;
@@ -211,6 +218,26 @@ class App {
 
         // Menu bar
         this._setupMenuBar();
+    }
+
+    _getToolHint(name) {
+        const hints = {
+            'Move':            'Drag to move layer',
+            'Brush':           'Draw with brush  |  Right-click: BG color',
+            'Eraser':          'Erase to transparent  |  Right-click: BG color',
+            'Fill':            'Click to flood fill  |  Right-click: BG color',
+            'Color Picker':    'Click to pick FG color  |  Right-click: BG color',
+            'Line':            'Drag to draw line  |  Shift: constrain angle',
+            'Rectangle':       'Drag to draw rect  |  Shift: square',
+            'Filled Rect':     'Drag to draw filled rect  |  Shift: square',
+            'Ellipse':         'Drag to draw ellipse  |  Shift: circle',
+            'Filled Ellipse':  'Drag to draw filled ellipse  |  Shift: circle',
+            'Rect Select':     'Drag to select  |  Shift: add  |  Alt: subtract',
+            'Ellipse Select':  'Drag to select  |  Shift: add  |  Alt: subtract',
+            'Free Transform':  'Move, resize, or rotate selection  |  Shift: proportional  |  Ctrl: snap angle',
+            'Mirror':          'Click to flip horizontal  |  Shift: flip vertical',
+        };
+        return hints[name] || '';
     }
 
     _wrapUndoIntoCanvasView() {
@@ -459,6 +486,9 @@ class App {
             case 'image':
                 this._showImageMenu();
                 break;
+            case 'layer':
+                this._showLayerMenu();
+                break;
         }
     }
 
@@ -486,18 +516,22 @@ class App {
                 continue;
             }
 
+            const disabled = item.disabled === true;
             const el = document.createElement('div');
             el.style.cssText = `
-                padding: 6px 16px; cursor: pointer; font-size: 12px; color: #ccc;
+                padding: 6px 16px; cursor: ${disabled ? 'default' : 'pointer'}; font-size: 12px;
+                color: ${disabled ? '#666' : '#ccc'};
                 display: flex; justify-content: space-between;
             `;
             el.innerHTML = `<span>${item.label}</span>${item.shortcut ? `<span style="color:#888; margin-left:24px">${item.shortcut}</span>` : ''}`;
-            el.addEventListener('mouseenter', () => { el.style.background = '#007acc'; });
-            el.addEventListener('mouseleave', () => { el.style.background = 'none'; });
-            el.addEventListener('click', () => {
-                dropdown.remove();
-                item.action();
-            });
+            if (!disabled) {
+                el.addEventListener('mouseenter', () => { el.style.background = '#007acc'; });
+                el.addEventListener('mouseleave', () => { el.style.background = 'none'; });
+                el.addEventListener('click', () => {
+                    dropdown.remove();
+                    item.action();
+                });
+            }
             dropdown.appendChild(el);
         }
 
@@ -711,23 +745,139 @@ class App {
         ]);
     }
 
+    _rotateImage(clockwise) {
+        const doc = this.doc;
+        const oldW = doc.width;
+        const oldH = doc.height;
+
+        this.undoManager.beginOperation();
+
+        for (const layer of doc.layers) {
+            const { width: lw, height: lh, data, offsetX, offsetY } = layer;
+            const newLW = lh;
+            const newLH = lw;
+            const newData = new Uint16Array(newLW * newLH);
+            newData.fill(TRANSPARENT);
+
+            for (let row = 0; row < lh; row++) {
+                for (let col = 0; col < lw; col++) {
+                    const px = data[row * lw + col];
+                    let newCol, newRow;
+                    if (clockwise) {
+                        newCol = lh - 1 - row;
+                        newRow = col;
+                    } else {
+                        newCol = row;
+                        newRow = lw - 1 - col;
+                    }
+                    newData[newRow * newLW + newCol] = px;
+                }
+            }
+
+            let newOffX, newOffY;
+            if (clockwise) {
+                newOffX = oldH - 1 - (offsetY + lh - 1);
+                newOffY = offsetX;
+            } else {
+                newOffX = offsetY;
+                newOffY = oldW - 1 - (offsetX + lw - 1);
+            }
+
+            layer.data = newData;
+            layer.width = newLW;
+            layer.height = newLH;
+            layer.offsetX = newOffX;
+            layer.offsetY = newOffY;
+        }
+
+        doc.width = oldH;
+        doc.height = oldW;
+        doc.selection.resize(oldH, oldW);
+
+        this.undoManager.endOperation();
+
+        document.getElementById('status-size').textContent = `${doc.width} x ${doc.height}`;
+        this.bus.emit('selection-changed');
+        this.bus.emit('layer-changed');
+        this.bus.emit('document-changed');
+    }
+
     _showImageMenu() {
         const anchor = document.querySelector('[data-menu="image"]');
         this._showDropdown(anchor, [
             { label: 'Resize...', action: () => this._showResizeDialog() },
             '-',
-            { label: 'Flatten Image', action: () => {
-                const flat = this.doc.flattenToLayer();
-                this.doc.layers = [flat];
-                this.doc.activeLayerIndex = 0;
-                this.bus.emit('layer-changed');
-                this.bus.emit('document-changed');
-            }},
+            { label: 'Rotate Left', action: () => this._rotateImage(false) },
+            { label: 'Rotate Right', action: () => this._rotateImage(true) },
+            '-',
             { label: 'Reset Brush', shortcut: '1', action: () => {
                 this.doc.activeBrush = Brush.default();
                 this.bus.emit('brush-changed');
             }},
         ]);
+    }
+
+    _showLayerMenu() {
+        const anchor = document.querySelector('[data-menu="layer"]');
+        const sel = this.doc.selectedLayerIndices;
+        const multiSelected = sel.size >= 2;
+        this._showDropdown(anchor, [
+            { label: 'Merge Selected', disabled: !multiSelected, action: () => this._mergeSelectedLayers() },
+            { label: 'Merge All', action: () => {
+                this.undoManager.beginOperation();
+                const flat = this.doc.flattenToLayer();
+                this.doc.layers = [flat];
+                this.doc.activeLayerIndex = 0;
+                this.doc.selectedLayerIndices.clear();
+                this.undoManager.endOperation();
+                this.bus.emit('layer-changed');
+                this.bus.emit('document-changed');
+            }},
+        ]);
+    }
+
+    _mergeSelectedLayers() {
+        const doc = this.doc;
+        const sel = doc.selectedLayerIndices;
+        // Always include the active layer
+        sel.add(doc.activeLayerIndex);
+        if (sel.size < 2) return;
+
+        const indices = [...sel].sort((a, b) => a - b);
+
+        this.undoManager.beginOperation();
+
+        // Composite selected layers bottom-to-top into a new layer
+        const merged = new Layer('Merged', doc.width, doc.height);
+        for (const idx of indices) {
+            const layer = doc.layers[idx];
+            if (!layer.visible) continue;
+            const lx0 = Math.max(0, layer.offsetX);
+            const ly0 = Math.max(0, layer.offsetY);
+            const lx1 = Math.min(doc.width, layer.offsetX + layer.width);
+            const ly1 = Math.min(doc.height, layer.offsetY + layer.height);
+            for (let dy = ly0; dy < ly1; dy++) {
+                for (let dx = lx0; dx < lx1; dx++) {
+                    const val = layer.data[(dy - layer.offsetY) * layer.width + (dx - layer.offsetX)];
+                    if (val !== TRANSPARENT) {
+                        merged.data[dy * doc.width + dx] = val;
+                    }
+                }
+            }
+        }
+
+        // Remove selected layers (from highest index first) and insert merged
+        const lowestIdx = indices[0];
+        for (let i = indices.length - 1; i >= 0; i--) {
+            doc.layers.splice(indices[i], 1);
+        }
+        doc.layers.splice(lowestIdx, 0, merged);
+        doc.activeLayerIndex = lowestIdx;
+        sel.clear();
+
+        this.undoManager.endOperation();
+        this.bus.emit('layer-changed');
+        this.bus.emit('document-changed');
     }
 
     _showResizeDialog() {
@@ -984,7 +1134,8 @@ class App {
         this.doc.fgColorIndex = newDoc.fgColorIndex;
         this.doc.bgColorIndex = newDoc.bgColorIndex;
 
-        // Reset selection for new document dimensions
+        // Reset selection and layer selection for new document dimensions
+        this.doc.selectedLayerIndices.clear();
         this.doc.selection.resize(newDoc.width, newDoc.height);
         this.canvasView.stopMarchingAnts();
 

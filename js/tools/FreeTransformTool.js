@@ -352,7 +352,12 @@ export class FreeTransformTool extends BaseTool {
             t.ty = st.ty + (y - this._startY);
         } else if (this._dragMode === 'rotate') {
             const angle = Math.atan2(y - (st.cy + st.ty), x - (st.cx + st.tx));
-            t.rotation = st.rotation + (angle - this._startAngle);
+            let newRotation = st.rotation + (angle - this._startAngle);
+            if (e.ctrlKey) {
+                const snap = 22.5 * Math.PI / 180;
+                newRotation = Math.round(newRotation / snap) * snap;
+            }
+            t.rotation = newRotation;
         } else if (this._dragMode === 'resize') {
             this._applyResize(x, y, e);
         }

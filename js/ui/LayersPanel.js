@@ -24,7 +24,9 @@ export class LayersPanel {
         for (let i = this.doc.layers.length - 1; i >= 0; i--) {
             const layer = this.doc.layers[i];
             const item = document.createElement('div');
-            item.className = 'layer-item' + (i === this.doc.activeLayerIndex ? ' active' : '');
+            const isActive = i === this.doc.activeLayerIndex;
+            const isSelected = this.doc.selectedLayerIndices.has(i);
+            item.className = 'layer-item' + (isActive ? ' active' : '') + (isSelected ? ' selected' : '');
 
             // Visibility toggle
             const vis = document.createElement('div');
@@ -60,9 +62,19 @@ export class LayersPanel {
                 this._startRename(name, layer);
             });
 
-            item.addEventListener('click', () => {
-                this.doc.activeLayerIndex = i;
-                this.bus.emit('active-layer-changed');
+            item.addEventListener('click', (e) => {
+                if (e.ctrlKey) {
+                    const sel = this.doc.selectedLayerIndices;
+                    if (sel.has(i)) {
+                        sel.delete(i);
+                    } else {
+                        sel.add(i);
+                    }
+                } else {
+                    this.doc.selectedLayerIndices.clear();
+                    this.doc.activeLayerIndex = i;
+                    this.bus.emit('active-layer-changed');
+                }
                 this.render();
             });
 

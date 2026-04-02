@@ -34,6 +34,8 @@ export class Toolbar {
             'sep',
             { tools: ['Rect Select', 'Ellipse Select'], label: 'Select' },
             'Free Transform',
+            'sep',
+            'Mirror',
         ];
 
         for (const item of layout) {

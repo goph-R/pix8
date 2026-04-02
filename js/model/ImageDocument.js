@@ -15,6 +15,7 @@ export class ImageDocument {
         this.bgColorIndex = 0;  // black
         this.activeBrush = Brush.default();
         this.selection = new Selection(width, height);
+        this.selectedLayerIndices = new Set();
 
         // Start with one empty layer
         this.addLayer('Background');
