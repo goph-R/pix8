@@ -362,8 +362,13 @@ export class CanvasView {
         // Draw grid overlay
         this.gridOverlay.draw(doc.width, doc.height, zoom, panX, panY);
 
-        // Redraw marching ants to stay in sync with pan/zoom
-        if (this.doc.selection.active) {
+        // Redraw marching ants or transform box
+        if (this._activeTool && this._activeTool.isTransformActive) {
+            // Draw transform box instead of marching ants
+            const ctx = this.selectionCtx;
+            ctx.clearRect(0, 0, this.selectionCanvas.width, this.selectionCanvas.height);
+            this._activeTool.drawTransformBox(ctx, zoom, panX, panY);
+        } else if (this.doc.selection.active) {
             this._drawMarchingAnts();
         }
 
@@ -489,6 +494,12 @@ export class CanvasView {
         const cw = this.selectionCanvas.width;
         const ch = this.selectionCanvas.height;
         ctx.clearRect(0, 0, cw, ch);
+
+        // Don't draw ants during free transform — render() draws the transform box
+        if (this._activeTool && this._activeTool.isTransformActive) {
+            this._activeTool.drawTransformBox(ctx, this.zoom, this.panX, this.panY);
+            return;
+        }
 
         const sel = this.doc.selection;
         if (!sel.active) return;

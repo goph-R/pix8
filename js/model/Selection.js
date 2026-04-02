@@ -7,6 +7,7 @@ export class Selection {
         this.mask = new Uint8Array(width * height);
         this.active = false;
         this.floating = null; // { data, mask, width, height, originX, originY }
+        this.floatingTransform = null; // set by FreeTransformTool
         this._resizeSource = null; // { mask, minX, minY, w, h }
         this._pureShape = null; // 'rect' or 'ellipse' if unmodified
     }
@@ -15,6 +16,7 @@ export class Selection {
         this.active = false;
         this.mask.fill(0);
         this.floating = null;
+        this.floatingTransform = null;
         this._resizeSource = null;
         this._pureShape = null;
     }

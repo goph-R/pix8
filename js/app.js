@@ -20,6 +20,7 @@ import { FilledEllipseTool } from './tools/FilledEllipseTool.js';
 import { FillTool } from './tools/FillTool.js';
 import { RectSelector } from './tools/RectSelector.js';
 import { EllipseSelector } from './tools/EllipseSelector.js';
+import { FreeTransformTool } from './tools/FreeTransformTool.js';
 import { EraserTool } from './tools/EraserTool.js';
 import { ColorPickerTool } from './tools/ColorPickerTool.js';
 import { MoveTool } from './tools/MoveTool.js';
@@ -133,15 +134,38 @@ class App {
             new FillTool(this.doc, this.bus, this.canvasView),
             new RectSelector(this.doc, this.bus, this.canvasView),
             new EllipseSelector(this.doc, this.bus, this.canvasView),
+            new FreeTransformTool(this.doc, this.bus, this.canvasView),
         ];
+
+        this._freeTransformTool = tools.find(t => t.name === 'Free Transform');
 
         // Toolbar
         this.toolbar = new Toolbar(tools, this.bus);
 
         // Wire active tool to canvas view (must be before setActiveTool)
         this.bus.on('tool-changed', (tool) => {
+            // Commit free transform when switching away
+            const ft = this._freeTransformTool;
+            if (ft && ft.isTransformActive && tool !== ft) {
+                ft.commit();
+            }
             this.canvasView.activeTool = tool;
             document.getElementById('status-tool').textContent = tool.name;
+            // Auto-activate free transform when selected from toolbar/shortcut
+            if (tool === ft && !ft.isTransformActive) {
+                const sel = this.doc.selection;
+                if (!sel.active) {
+                    alert('No selection');
+                    const fallback = this._lastNonTransformTool || 'Rect Select';
+                    this.toolbar.setActiveTool(fallback);
+                    return;
+                }
+                const prev = this._lastNonTransformTool || 'Rect Select';
+                ft.activate(prev, this.undoManager);
+            }
+            if (tool !== ft) {
+                this._lastNonTransformTool = tool.name;
+            }
         });
 
         this.toolbar.setActiveTool('Brush');
@@ -173,7 +197,8 @@ class App {
         this.bus.on('selection-changed', () => {
             const sel = this.doc.selection;
             this.canvasView.invalidateSelectionEdges();
-            if (sel.active) {
+            const ftActive = this._freeTransformTool && this._freeTransformTool.isTransformActive;
+            if (sel.active && !ftActive) {
                 this.canvasView.startMarchingAnts();
             } else {
                 this.canvasView.stopMarchingAnts();
@@ -196,7 +221,8 @@ class App {
         // The event listeners in CanvasView use arrow functions that call
         // this._onPointerDown(e) — so replacing the method on the instance works.
         cv._onPointerDown = (e) => {
-            if (e.button === 0 && !cv._spaceDown && cv._activeTool) {
+            const isFreeTransform = cv._activeTool && cv._activeTool.isTransformActive;
+            if (e.button === 0 && !cv._spaceDown && cv._activeTool && !isFreeTransform) {
                 this.undoManager.beginOperation();
             }
             origDown.call(cv, e);
@@ -204,7 +230,10 @@ class App {
 
         cv._onPointerUp = (e) => {
             origUp.call(cv, e);
-            this.undoManager.endOperation();
+            const isFreeTransform = cv._activeTool && cv._activeTool.isTransformActive;
+            if (!isFreeTransform) {
+                this.undoManager.endOperation();
+            }
         };
     }
 
@@ -244,6 +273,18 @@ class App {
                 if (e.key === '-') {
                     this._zoomStep(-1);
                     return;
+                }
+
+                // Escape / Enter during Free Transform
+                if (this._freeTransformTool && this._freeTransformTool.isTransformActive) {
+                    if (e.key === 'Escape') {
+                        this._freeTransformTool.cancel();
+                        return;
+                    }
+                    if (e.key === 'Enter') {
+                        this._freeTransformTool.commit();
+                        return;
+                    }
                 }
 
                 // Escape = deselect
@@ -352,6 +393,7 @@ class App {
                 e.preventDefault();
                 return;
             }
+
 
             // Ctrl+B = set brush from selection
             if (e.ctrlKey && !e.shiftKey && e.key === 'b') {

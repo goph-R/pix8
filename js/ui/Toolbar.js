@@ -33,6 +33,7 @@ export class Toolbar {
             { tools: ['Ellipse', 'Filled Ellipse'], label: 'Ellipse' },
             'sep',
             { tools: ['Rect Select', 'Ellipse Select'], label: 'Select' },
+            'Free Transform',
         ];
 
         for (const item of layout) {
