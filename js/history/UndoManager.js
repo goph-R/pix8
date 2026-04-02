@@ -8,6 +8,7 @@ export class UndoManager {
         this._snapshot = null;
         this._snapshotGeometry = null;
         this._snapshotLayer = -1;
+        this._selectionSnapshot = null;
     }
 
     /** Call before a tool operation begins (on pointer down). */
@@ -17,6 +18,7 @@ export class UndoManager {
         this._snapshotLayer = idx;
         this._snapshot = layer.snapshotData();
         this._snapshotGeometry = layer.snapshotGeometry();
+        this._selectionSnapshot = this.doc.selection.snapshot();
     }
 
     /** Call after a tool operation ends (on pointer up). */
@@ -27,29 +29,57 @@ export class UndoManager {
         const layer = this.doc.layers[idx];
         const afterData = layer.snapshotData();
         const afterGeometry = layer.snapshotGeometry();
+        const afterSelection = this.doc.selection.snapshot();
 
-        // Check if anything changed (data or geometry)
-        let changed = false;
+        // Check if layer changed (data or geometry)
+        let layerChanged = false;
         const bg = this._snapshotGeometry;
         if (bg.width !== afterGeometry.width || bg.height !== afterGeometry.height ||
             bg.offsetX !== afterGeometry.offsetX || bg.offsetY !== afterGeometry.offsetY) {
-            changed = true;
+            layerChanged = true;
         } else {
             for (let i = 0; i < afterData.length; i++) {
                 if (afterData[i] !== this._snapshot[i]) {
-                    changed = true;
+                    layerChanged = true;
                     break;
                 }
             }
         }
 
-        if (changed) {
+        // Check if selection changed
+        let selectionChanged = false;
+        const bs = this._selectionSnapshot;
+        if (bs.active !== afterSelection.active) {
+            selectionChanged = true;
+        } else if (bs.active) {
+            for (let i = 0; i < bs.mask.length; i++) {
+                if (bs.mask[i] !== afterSelection.mask[i]) {
+                    selectionChanged = true;
+                    break;
+                }
+            }
+            if (!selectionChanged) {
+                const bf = bs.floating;
+                const af = afterSelection.floating;
+                if ((!bf) !== (!af)) {
+                    selectionChanged = true;
+                } else if (bf && af) {
+                    if (bf.originX !== af.originX || bf.originY !== af.originY) {
+                        selectionChanged = true;
+                    }
+                }
+            }
+        }
+
+        if (layerChanged || selectionChanged) {
             this.undoStack.push({
                 layerIndex: idx,
                 beforeData: this._snapshot,
                 afterData: afterData,
                 beforeGeometry: this._snapshotGeometry,
                 afterGeometry: afterGeometry,
+                beforeSelection: this._selectionSnapshot,
+                afterSelection: afterSelection,
             });
 
             if (this.undoStack.length > this.maxEntries) {
@@ -62,23 +92,19 @@ export class UndoManager {
         this._snapshot = null;
         this._snapshotGeometry = null;
         this._snapshotLayer = -1;
+        this._selectionSnapshot = null;
     }
 
     undo() {
         const entry = this.undoStack.pop();
         if (!entry) return;
 
-        // Drop any floating selection before restoring
-        const sel = this.doc.selection;
-        if (sel && sel.active) {
-            sel.clear();
-            this.bus.emit('selection-changed');
-        }
-
         const layer = this.doc.layers[entry.layerIndex];
         if (layer) {
             layer.restoreSnapshot(entry.beforeData, entry.beforeGeometry);
+            this.doc.selection.restoreSnapshot(entry.beforeSelection);
             this.redoStack.push(entry);
+            this.bus.emit('selection-changed');
             this.bus.emit('layer-changed');
             this.bus.emit('document-changed');
         }
@@ -88,17 +114,12 @@ export class UndoManager {
         const entry = this.redoStack.pop();
         if (!entry) return;
 
-        // Drop any floating selection before restoring
-        const sel = this.doc.selection;
-        if (sel && sel.active) {
-            sel.clear();
-            this.bus.emit('selection-changed');
-        }
-
         const layer = this.doc.layers[entry.layerIndex];
         if (layer) {
             layer.restoreSnapshot(entry.afterData, entry.afterGeometry);
+            this.doc.selection.restoreSnapshot(entry.afterSelection);
             this.undoStack.push(entry);
+            this.bus.emit('selection-changed');
             this.bus.emit('layer-changed');
             this.bus.emit('document-changed');
         }

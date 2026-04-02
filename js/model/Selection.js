@@ -436,6 +436,43 @@ export class Selection {
         this._pureShape = null;
     }
 
+    snapshot() {
+        const snap = {
+            mask: new Uint8Array(this.mask),
+            active: this.active,
+            pureShape: this._pureShape,
+            floating: null,
+        };
+        if (this.floating) {
+            const f = this.floating;
+            snap.floating = {
+                data: new Uint16Array(f.data),
+                mask: new Uint8Array(f.mask),
+                width: f.width, height: f.height,
+                originX: f.originX, originY: f.originY,
+            };
+        }
+        return snap;
+    }
+
+    restoreSnapshot(snap) {
+        this.mask = new Uint8Array(snap.mask);
+        this.active = snap.active;
+        this._pureShape = snap.pureShape;
+        this._resizeSource = null;
+        if (snap.floating) {
+            const f = snap.floating;
+            this.floating = {
+                data: new Uint16Array(f.data),
+                mask: new Uint8Array(f.mask),
+                width: f.width, height: f.height,
+                originX: f.originX, originY: f.originY,
+            };
+        } else {
+            this.floating = null;
+        }
+    }
+
     resize(width, height) {
         this.width = width;
         this.height = height;
