@@ -45,10 +45,12 @@ export class Selection {
         const rx = (maxX - minX) / 2;
         const ry = (maxY - minY) / 2;
         if (rx <= 0 || ry <= 0) return;
+        const erx = rx + 0.5;
+        const ery = ry + 0.5;
         for (let y = minY; y <= maxY; y++) {
             for (let x = minX; x <= maxX; x++) {
-                const dx = (x - cx) / rx;
-                const dy = (y - cy) / ry;
+                const dx = (x - cx) / erx;
+                const dy = (y - cy) / ery;
                 if (dx * dx + dy * dy <= 1) {
                     this.mask[y * this.width + x] = 1;
                 }

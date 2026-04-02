@@ -48,6 +48,8 @@ export class CanvasView {
         this._pointerDown = false;
         this._lastDocX = 0;
         this._lastDocY = 0;
+        this._lastScreenX = 0;
+        this._lastScreenY = 0;
         this._lastMoveEvent = null;
 
         this._setupResize();
@@ -177,6 +179,9 @@ export class CanvasView {
         const pos = this.screenToDoc(e.clientX, e.clientY);
         this._lastDocX = pos.x;
         this._lastDocY = pos.y;
+        const rect = this.container.getBoundingClientRect();
+        this._lastScreenX = e.clientX - rect.left;
+        this._lastScreenY = e.clientY - rect.top;
 
         // Update status bar position
         this.bus.emit('cursor-move', pos);
@@ -515,5 +520,72 @@ export class CanvasView {
             ctx.stroke();
         }
         ctx.setLineDash([]);
+
+        // Draw resize handles if active tool supports them
+        if (this._activeTool && this._activeTool.showsResizeHandles) {
+            this._drawResizeHandles();
+        }
+    }
+
+    _getResizeHandlePositions() {
+        const sel = this.doc.selection;
+        if (!sel.active || sel.hasFloating()) return null;
+        const bounds = sel.getBounds();
+        if (!bounds) return null;
+
+        const { minX, minY, maxX, maxY } = bounds;
+        const { zoom, panX, panY } = this;
+
+        const left = panX + minX * zoom;
+        const top = panY + minY * zoom;
+        const right = panX + (maxX + 1) * zoom;
+        const bottom = panY + (maxY + 1) * zoom;
+        const midX = (left + right) / 2;
+        const midY = (top + bottom) / 2;
+
+        return [
+            { id: 'nw', x: left, y: top },
+            { id: 'n',  x: midX, y: top },
+            { id: 'ne', x: right, y: top },
+            { id: 'e',  x: right, y: midY },
+            { id: 'se', x: right, y: bottom },
+            { id: 's',  x: midX, y: bottom },
+            { id: 'sw', x: left, y: bottom },
+            { id: 'w',  x: left, y: midY },
+        ];
+    }
+
+    hitTestResizeHandle() {
+        const handles = this._getResizeHandlePositions();
+        if (!handles) return null;
+
+        const screenX = this._lastScreenX;
+        const screenY = this._lastScreenY;
+        const halfSize = 5;
+
+        for (const h of handles) {
+            if (Math.abs(screenX - h.x) <= halfSize && Math.abs(screenY - h.y) <= halfSize) {
+                return h.id;
+            }
+        }
+        return null;
+    }
+
+    _drawResizeHandles() {
+        const handles = this._getResizeHandlePositions();
+        if (!handles) return;
+
+        const ctx = this.selectionCtx;
+        const size = 7;
+        const half = Math.floor(size / 2);
+
+        for (const h of handles) {
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(h.x - half, h.y - half, size, size);
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([]);
+            ctx.strokeRect(h.x - half + 0.5, h.y - half + 0.5, size - 1, size - 1);
+        }
     }
 }
