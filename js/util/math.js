@@ -1,3 +1,19 @@
+/**
+ * Snap an endpoint to the nearest 22.5-degree angle from a start point.
+ */
+export function snapEndpoint(x0, y0, x1, y1) {
+    const dx = x1 - x0;
+    const dy = y1 - y0;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist === 0) return { x: x1, y: y1 };
+    const snap = 22.5 * Math.PI / 180;
+    const angle = Math.round(Math.atan2(dy, dx) / snap) * snap;
+    return {
+        x: Math.round(x0 + dist * Math.cos(angle)),
+        y: Math.round(y0 + dist * Math.sin(angle)),
+    };
+}
+
 export function clamp(val, min, max) {
     return val < min ? min : val > max ? max : val;
 }

@@ -12,20 +12,28 @@ A browser-based 256-color indexed pixel art editor inspired by VGA-era graphics 
 - **Independent layers** -- each layer has its own size and position, auto-extends when drawing outside bounds
 - **Layer operations** -- add, delete (with confirmation), reorder, duplicate, toggle visibility, solo (right-click eye icon), rename (double-click)
 - **Drawing tools** -- Brush, Eraser, Color Picker, Line, Rectangle, Filled Rectangle, Ellipse, Filled Ellipse, Flood Fill
+- **Brush right-click** -- draw with background color using right mouse button
 - **Pixel-perfect preview** -- all drawing tools show an 80% opacity preview of the exact pixels before committing
 - **Move tool** -- reposition layers and floating selections within the document
+- **Mirror tool** -- flip image or selection horizontally (click) or vertically (Shift+click)
 - **Selection tools** -- Rectangle and Ellipse selection with resizable handles at edges and corners
 - **Selection modifiers** -- Shift+drag to add to selection, Alt+drag to subtract from selection
 - **Selection operations** -- move selection mask by dragging inside, click to deselect, Select All, Deselect
-- **Free Transform** -- move, resize, and rotate selected pixels with interactive handles (T shortcut), commit with Enter, cancel with Escape
+- **Free Transform** -- move, resize, and rotate selected pixels with interactive handles (T shortcut), Ctrl snaps rotation to 22.5-degree increments, commit with Enter, cancel with Escape
 - **Flood Fill** -- fill connected pixels with FG/BG color (G shortcut), respects selection boundaries
+- **Line snapping** -- hold Ctrl while drawing lines to snap to nearest 22.5-degree angle (horizontal, vertical, diagonal)
+- **Eraser line mode** -- hold Shift to erase in a straight line, Ctrl to snap angle
 - **Clipboard** -- Cut (Ctrl+X), Copy (Ctrl+C), Copy Merged (Ctrl+Shift+C), Paste (Ctrl+V), Paste in Place (Ctrl+Shift+V)
 - **Brush capture** -- set brush from selection (Ctrl+B) to capture pixels as a custom brush stamp
 - **Palette dialog** -- click pen icon to open palette editor with RGB sliders, click to select FG color, right-click for BG color
 - **Color picker** -- samples from the merged visible image, not just the active layer
+- **Image rotation** -- Image menu: Rotate Left / Rotate Right (90-degree, affects all layers, swaps dimensions)
+- **Layer menu** -- Merge All (flatten), Merge Selected (Ctrl+click layers to multi-select)
+- **Multi-layer selection** -- Ctrl+click layers in the panel to select multiple, used for Merge Selected
 - **Undo/Redo** -- Ctrl+Z / Ctrl+Shift+Z, 50-step history (includes layer geometry and selection changes)
 - **File I/O** -- save/load `.pix8` projects, import/export 8-bit BMP and PCX, export PNG
 - **Import options** -- import image, import as layer, import palette only, optional index 0 transparency
+- **Status bar hints** -- contextual tool hints showing available shortcuts and modifiers
 - **Dark theme** -- desktop only, minimum 1200px width
 
 ## Getting Started

@@ -43,7 +43,7 @@ export class BaseTool {
         }
     }
 
-    stampBrush(layer, x, y) {
+    stampBrush(layer, x, y, colorOverride) {
         const brush = this.doc.activeBrush;
         const ox = brush.originX;
         const oy = brush.originY;
@@ -71,7 +71,7 @@ export class BaseTool {
                 const docX = x + bx - ox;
                 const docY = y + by - oy;
                 if (this.doc.selection.active && !this.doc.selection.isSelected(docX, docY)) continue;
-                const colorIndex = brush.isCaptured ? idx : this.doc.fgColorIndex;
+                const colorIndex = brush.isCaptured ? idx : (colorOverride !== undefined ? colorOverride : this.doc.fgColorIndex);
                 layer.setPixelAutoExtend(docX, docY, colorIndex);
             }
         }

@@ -9,6 +9,7 @@ export class BrushTool extends BaseTool {
         this.icon = `<svg viewBox="0 0 20 20"><path d="M3 17l4-1-3-3-1 4zm4.5-1.5l8-8-3-3-8 8 3 3zm9-9l1-1a1.4 1.4 0 00-2-2l-1 1 2 2z"/></svg>`;
         this._lastX = null;
         this._lastY = null;
+        this._color = undefined;
     }
 
     onHover(x, y) {
@@ -20,7 +21,8 @@ export class BrushTool extends BaseTool {
         if (layer.locked) return;
         this._lastX = x;
         this._lastY = y;
-        this.stampBrush(layer, x, y);
+        this._color = e.button === 2 ? this.doc.bgColorIndex : undefined;
+        this.stampBrush(layer, x, y, this._color);
     }
 
     onPointerMove(x, y, e) {
@@ -29,7 +31,7 @@ export class BrushTool extends BaseTool {
 
         // Interpolate from last position to current using Bresenham
         bresenhamLine(this._lastX, this._lastY, x, y, (px, py) => {
-            this.stampBrush(layer, px, py);
+            this.stampBrush(layer, px, py, this._color);
         });
 
         this._lastX = x;
