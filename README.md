@@ -25,14 +25,18 @@ A browser-based 256-color indexed pixel art editor inspired by VGA-era graphics 
 - **Eraser line mode** -- hold Shift to erase in a straight line, Ctrl to snap angle
 - **Clipboard** -- Cut (Ctrl+X), Copy (Ctrl+C), Copy Merged (Ctrl+Shift+C), Paste (Ctrl+V), Paste in Place (Ctrl+Shift+V)
 - **Brush capture** -- set brush from selection (Ctrl+B) to capture pixels as a custom brush stamp
-- **Palette dialog** -- click pen icon to open palette editor with RGB sliders, click to select FG color, right-click for BG color
+- **GrafX2-style palette editor** -- full palette management dialog with toolbar, vertical RGB sliders, range selection (drag to select), color preview strip
+- **Palette operations** -- Swap, X-Swap (with pixel remap), Copy, Flip, X-Flip, Neg, Gray, Spread, Merge, Sort (Hue/Lightness/Histogram), Reduce (median-cut), Zap Unused, Used highlight
+- **6-bit per channel mode** -- VGA-era 0-63 color range with automatic conversion, checkbox toggle with confirmation
+- **Palette Load/Save** -- load from PAL/BMP/PCX, save to JASC-PAL format (respects 6-bit/8-bit mode)
+- **Palette undo** -- per-operation undo within the dialog, plus document-level undo on OK (Ctrl+Z reverts entire palette edit session)
 - **Color picker** -- samples from the merged visible image, not just the active layer
 - **Image rotation** -- Image menu: Rotate Left / Rotate Right (90-degree, affects all layers, swaps dimensions)
 - **Layer menu** -- Merge All (flatten), Merge Selected (Ctrl+click layers to multi-select)
-- **Multi-layer selection** -- Ctrl+click layers in the panel to select multiple, used for Merge Selected
+- **Multi-layer selection** -- Ctrl+click layers in the panel to select multiple, active layer always selected, used for Merge Selected
 - **Undo/Redo** -- Ctrl+Z / Ctrl+Shift+Z, 50-step history (includes layer geometry and selection changes)
-- **File I/O** -- save/load `.pix8` projects, import/export 8-bit BMP and PCX, export PNG
-- **Import options** -- import image, import as layer, import palette only, optional index 0 transparency
+- **File I/O** -- save/load `.pix8` projects, import/export 8-bit BMP and PCX, export PNG, JASC-PAL palette format
+- **Import options** -- import image, import as layer, optional index 0 transparency
 - **Status bar hints** -- contextual tool hints showing available shortcuts and modifiers
 - **Dark theme** -- desktop only, minimum 1200px width
 
