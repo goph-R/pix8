@@ -28,6 +28,14 @@ export class TabBar {
                 this.bus.emit('tab-switch', tab.id);
             });
 
+            name.addEventListener('dblclick', (e) => {
+                e.stopPropagation();
+                const result = prompt('Rename tab:', tab.name);
+                if (result !== null && result.trim()) {
+                    this.bus.emit('tab-rename', { id: tab.id, name: result.trim() });
+                }
+            });
+
             this.container.appendChild(el);
         }
     }
