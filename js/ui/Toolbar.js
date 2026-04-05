@@ -19,9 +19,9 @@ export class Toolbar {
         this.bus.on('document-changed', () => this.updateEnabledState());
         this.bus.on('active-layer-changed', () => this.updateEnabledState());
 
-        // Close flyout on click outside
+        // Close flyout on click outside (but not on group buttons — they handle toggle)
         document.addEventListener('pointerdown', (e) => {
-            if (this._openFlyout && !this._openFlyout.contains(e.target)) {
+            if (this._openFlyout && !this._openFlyout.contains(e.target) && !e.target.closest('.tool-group')) {
                 this._closeFlyout();
             }
         });
