@@ -359,38 +359,48 @@ export function exportPNG(doc, renderer) {
     });
 }
 
-// ─── PAL (JASC-PAL) Format ──────────────────────────────────────────────
+// ─── PAL Format ─────────────────────────────────────────────────────────
+// 6-bit: raw 768 bytes (256 × RGB, values 0-63)
+// 8-bit: JASC-PAL text format (256 × RGB, values 0-255)
 
 export function exportPAL(palette, is6bit) {
+    if (is6bit) {
+        const data = new Uint8Array(768);
+        for (let i = 0; i < 256; i++) {
+            const [r, g, b] = palette.getColor(i);
+            data[i * 3]     = Math.round(r / 4);
+            data[i * 3 + 1] = Math.round(g / 4);
+            data[i * 3 + 2] = Math.round(b / 4);
+        }
+        return new Blob([data], { type: 'application/octet-stream' });
+    }
     let text = 'JASC-PAL\r\n0100\r\n256\r\n';
     for (let i = 0; i < 256; i++) {
-        let [r, g, b] = palette.getColor(i);
-        if (is6bit) {
-            r = Math.round(r / 4);
-            g = Math.round(g / 4);
-            b = Math.round(b / 4);
-        }
+        const [r, g, b] = palette.getColor(i);
         text += `${r} ${g} ${b}\r\n`;
     }
     return new Blob([text], { type: 'text/plain' });
 }
 
 export function importPAL(bytes) {
+    // Raw 768-byte 6-bit PAL
+    if (bytes.length === 768) {
+        const colors = [];
+        for (let i = 0; i < 256; i++) {
+            colors.push([bytes[i * 3] * 4, bytes[i * 3 + 1] * 4, bytes[i * 3 + 2] * 4]);
+        }
+        return colors;
+    }
+    // JASC-PAL text format
     const text = new TextDecoder().decode(bytes);
     const lines = text.split(/\r?\n/).filter(l => l.trim());
     if (lines[0] !== 'JASC-PAL') return null;
     const count = parseInt(lines[2]) || 256;
     const colors = [];
-    const is6bit = lines.slice(3, 3 + count).every(l => {
-        const parts = l.trim().split(/\s+/).map(Number);
-        return parts.every(v => v <= 63);
-    });
     for (let i = 0; i < count && i + 3 < lines.length; i++) {
         const parts = lines[i + 3].trim().split(/\s+/).map(Number);
         if (parts.length >= 3) {
-            let [r, g, b] = parts;
-            if (is6bit) { r *= 4; g *= 4; b *= 4; }
-            colors.push([r, g, b]);
+            colors.push([parts[0], parts[1], parts[2]]);
         }
     }
     while (colors.length < 256) colors.push([0, 0, 0]);
