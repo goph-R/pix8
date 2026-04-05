@@ -27,6 +27,7 @@ import { EraserTool } from './tools/EraserTool.js';
 import { ColorPickerTool } from './tools/ColorPickerTool.js';
 import { MoveTool } from './tools/MoveTool.js';
 import { MirrorTool } from './tools/MirrorTool.js';
+import { TextTool } from './tools/TextTool.js';
 
 import {
     savePix8, loadPix8,
@@ -145,6 +146,7 @@ class App {
             new EllipseSelector(this.doc, this.bus, this.canvasView),
             new FreeTransformTool(this.doc, this.bus, this.canvasView),
             new MirrorTool(this.doc, this.bus, this.canvasView),
+            new TextTool(this.doc, this.bus, this.canvasView),
         ];
 
         this._freeTransformTool = this._tools.find(t => t.name === 'Free Transform');
@@ -219,6 +221,9 @@ class App {
             }
             this.canvasView.render();
         });
+
+        // Text tool dialog
+        this.bus.on('open-text-dialog', (opts) => this._showTextDialog(opts));
 
         // Keyboard shortcuts
         this._setupKeyboardShortcuts(this._tools);
@@ -448,6 +453,7 @@ class App {
             'Ellipse Select':  'Drag to select  |  Shift: add  |  Alt: subtract',
             'Free Transform':  'Move, resize, or rotate selection  |  Shift: proportional  |  Ctrl: snap angle',
             'Mirror':          'Click to flip horizontal  |  Shift: flip vertical',
+            'Text':            'Click to add text  |  Click text layer to edit',
         };
         return hints[name] || '';
     }
@@ -1096,7 +1102,11 @@ class App {
         const anchor = document.querySelector('[data-menu="layer"]');
         const sel = this.doc.selectedLayerIndices;
         const multiSelected = sel.size >= 2;
+        const activeLayer = this.doc.getActiveLayer();
+        const isTextLayer = activeLayer && activeLayer.type === 'text';
         this._showDropdown(anchor, [
+            { label: 'Convert to Bitmap', disabled: !isTextLayer, action: () => this._convertTextToBitmap() },
+            '-',
             { label: 'Merge Selected', disabled: !multiSelected, action: () => this._mergeSelectedLayers() },
             { label: 'Merge All', action: () => {
                 this.undoManager.beginOperation();
@@ -1151,6 +1161,270 @@ class App {
         sel.add(lowestIdx);
 
         this.undoManager.endOperation();
+        this.bus.emit('layer-changed');
+        this.bus.emit('document-changed');
+    }
+
+    _showTextDialog(opts) {
+        const overlay = document.createElement('div');
+        overlay.className = 'palette-dialog-overlay';
+
+        const dialog = document.createElement('div');
+        dialog.className = 'palette-dialog';
+        dialog.style.width = 'fit-content';
+        dialog.style.minWidth = '320px';
+
+        const header = document.createElement('div');
+        header.className = 'palette-dialog-header';
+        header.innerHTML = `<span>${opts.isNew ? 'Add Text' : 'Edit Text'}</span>`;
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'palette-dialog-close';
+        closeBtn.textContent = '\u00D7';
+        closeBtn.addEventListener('click', () => overlay.remove());
+        header.appendChild(closeBtn);
+        dialog.appendChild(header);
+
+        const existing = opts.isNew ? null : opts.layer.textData;
+
+        // Text input
+        const textarea = document.createElement('textarea');
+        textarea.value = existing ? existing.text : '';
+        textarea.placeholder = 'Enter text...';
+        textarea.style.cssText = 'width:100%;height:80px;resize:vertical;background:var(--bg-input);border:1px solid var(--border);border-radius:3px;color:var(--text);padding:6px;font-size:13px;font-family:monospace;box-sizing:border-box;margin-bottom:8px;';
+        dialog.appendChild(textarea);
+
+        const row = (label, el) => {
+            const r = document.createElement('div');
+            r.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;';
+            const l = document.createElement('label');
+            l.textContent = label;
+            l.style.width = '70px';
+            r.appendChild(l);
+            r.appendChild(el);
+            dialog.appendChild(r);
+            return r;
+        };
+
+        // Font family
+        const fontSelect = document.createElement('select');
+        fontSelect.style.cssText = 'flex:1;background:var(--bg-input);border:1px solid var(--border);border-radius:2px;color:var(--text);padding:3px;font-size:12px;';
+        for (const f of ['monospace', 'sans-serif', 'serif', 'Arial', 'Courier New', 'Georgia', 'Times New Roman', 'Verdana']) {
+            const opt = document.createElement('option');
+            opt.value = f;
+            opt.textContent = f;
+            opt.style.fontFamily = f;
+            if (existing && existing.fontFamily === f) opt.selected = true;
+            fontSelect.appendChild(opt);
+        }
+        row('Font:', fontSelect);
+
+        // Font size
+        const sizeInput = document.createElement('input');
+        sizeInput.type = 'number';
+        sizeInput.min = 4;
+        sizeInput.max = 128;
+        sizeInput.value = existing ? existing.fontSize : 16;
+        sizeInput.style.cssText = 'width:60px;background:var(--bg-input);border:1px solid var(--border);border-radius:2px;color:var(--text);padding:3px;font-size:12px;text-align:center;';
+        row('Size:', sizeInput);
+
+        // Style checkboxes
+        const styleRow = document.createElement('div');
+        styleRow.style.cssText = 'display:flex;align-items:center;gap:12px;margin-bottom:6px;font-size:12px;';
+        const makeCheck = (label, checked) => {
+            const lbl = document.createElement('label');
+            lbl.style.cssText = 'display:flex;align-items:center;gap:4px;cursor:pointer;';
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.checked = checked;
+            cb.style.accentColor = 'var(--accent)';
+            lbl.appendChild(cb);
+            lbl.appendChild(document.createTextNode(label));
+            styleRow.appendChild(lbl);
+            return cb;
+        };
+        const boldCheck = makeCheck('Bold', existing ? existing.bold : false);
+        const italicCheck = makeCheck('Italic', existing ? existing.italic : false);
+        const underlineCheck = makeCheck('Underline', existing ? existing.underline : false);
+        const aaCheck = makeCheck('Anti-aliased', existing ? existing.antialiased !== false : true);
+        dialog.appendChild(styleRow);
+
+        // Color picker
+        let selectedColorIndex = existing ? existing.colorIndex : this.doc.fgColorIndex;
+        const colorRow = document.createElement('div');
+        colorRow.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:12px;position:relative;';
+        const colorLabel = document.createElement('label');
+        colorLabel.textContent = 'Color:';
+        colorLabel.style.width = '70px';
+        const colorSwatch = document.createElement('div');
+        const colorText = document.createElement('span');
+        colorText.style.color = 'var(--text-dim)';
+        const updateSwatch = () => {
+            const [r, g, b] = this.doc.palette.getColor(selectedColorIndex);
+            colorSwatch.style.background = `rgb(${r},${g},${b})`;
+            colorText.textContent = `Index: ${selectedColorIndex}`;
+        };
+        colorSwatch.style.cssText = 'width:24px;height:24px;border:1px solid var(--border);cursor:pointer;';
+
+        // Floating palette popup
+        const openColorPopup = () => {
+            const popup = document.createElement('div');
+            popup.style.cssText = 'position:fixed;z-index:1100;display:grid;grid-template-columns:repeat(16,14px);gap:1px;padding:6px;background:var(--bg-panel);border:1px solid var(--border);border-radius:4px;box-shadow:0 4px 12px rgba(0,0,0,0.5);';
+            for (let i = 0; i < 256; i++) {
+                const sw = document.createElement('div');
+                const [r, g, b] = this.doc.palette.getColor(i);
+                sw.style.cssText = `width:14px;height:14px;background:rgb(${r},${g},${b});cursor:pointer;border:1px solid var(--border);box-sizing:border-box;`;
+                sw.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    selectedColorIndex = i;
+                    updateSwatch();
+                    popup.remove();
+                });
+                popup.appendChild(sw);
+            }
+            // Position above the swatch
+            const rect = colorSwatch.getBoundingClientRect();
+            const popupW = 16 * 15 + 12; // approximate width
+            const popupH = 16 * 15 + 12;
+            popup.style.left = Math.max(0, rect.left) + 'px';
+            popup.style.top = Math.max(0, rect.top - popupH - 4) + 'px';
+            document.body.appendChild(popup);
+            // Close on click outside
+            const closePopup = (e) => {
+                if (!popup.contains(e.target)) {
+                    popup.remove();
+                    document.removeEventListener('pointerdown', closePopup, true);
+                }
+            };
+            setTimeout(() => document.addEventListener('pointerdown', closePopup, true), 0);
+        };
+        colorSwatch.addEventListener('click', openColorPopup);
+
+        colorRow.appendChild(colorLabel);
+        colorRow.appendChild(colorSwatch);
+        colorRow.appendChild(colorText);
+        dialog.appendChild(colorRow);
+        updateSwatch();
+
+        // Buttons
+        const footer = document.createElement('div');
+        footer.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;padding-top:8px;border-top:1px solid var(--border);';
+        const cancelBtn = document.createElement('button');
+        cancelBtn.textContent = 'Cancel';
+        cancelBtn.style.cssText = 'padding:4px 14px;border:1px solid var(--border);border-radius:3px;background:var(--bg-input);color:var(--text);cursor:pointer;font-size:12px;';
+        cancelBtn.addEventListener('click', () => overlay.remove());
+        const okBtn = document.createElement('button');
+        okBtn.textContent = 'OK';
+        okBtn.style.cssText = 'padding:4px 14px;border:1px solid var(--accent);border-radius:3px;background:var(--accent);color:var(--text-bright);cursor:pointer;font-size:12px;';
+        okBtn.addEventListener('click', () => {
+            const text = textarea.value;
+            if (!text.trim()) { overlay.remove(); return; }
+            const textData = {
+                text,
+                fontFamily: fontSelect.value,
+                fontSize: Math.max(4, Math.min(128, parseInt(sizeInput.value) || 16)),
+                bold: boldCheck.checked,
+                italic: italicCheck.checked,
+                underline: underlineCheck.checked,
+                antialiased: aaCheck.checked,
+                colorIndex: selectedColorIndex,
+            };
+            if (opts.isNew) {
+                const layer = Layer.createText('Text: ' + text.split('\n')[0].substring(0, 20), textData, this.doc.width, this.doc.height);
+                layer.offsetX = opts.x || 0;
+                layer.offsetY = opts.y || 0;
+                const insertIdx = this.doc.activeLayerIndex + 1;
+                this.doc.layers.splice(insertIdx, 0, layer);
+                this.doc.activeLayerIndex = insertIdx;
+                this.doc.selectedLayerIndices.clear();
+                this.doc.selectedLayerIndices.add(insertIdx);
+            } else {
+                opts.layer.textData = textData;
+                opts.layer.name = 'Text: ' + text.split('\n')[0].substring(0, 20);
+            }
+            overlay.remove();
+            this.bus.emit('layer-changed');
+            this.bus.emit('document-changed');
+        });
+        footer.appendChild(cancelBtn);
+        footer.appendChild(okBtn);
+        dialog.appendChild(footer);
+
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+        const onKey = (e) => {
+            if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', onKey); }
+        };
+        document.addEventListener('keydown', onKey);
+        textarea.focus();
+    }
+
+    _convertTextToBitmap() {
+        const layer = this.doc.getActiveLayer();
+        if (!layer || layer.type !== 'text') return;
+
+        const td = layer.textData;
+        const palette = this.doc.palette;
+        const [r, g, b] = palette.getColor(td.colorIndex);
+        const docW = this.doc.width;
+        const docH = this.doc.height;
+
+        const tmpCanvas = document.createElement('canvas');
+        tmpCanvas.width = docW;
+        tmpCanvas.height = docH;
+        const ctx = tmpCanvas.getContext('2d');
+
+        const style = (td.italic ? 'italic ' : '') + (td.bold ? 'bold ' : '');
+        ctx.font = `${style}${td.fontSize}px ${td.fontFamily}`;
+        ctx.fillStyle = `rgb(${r},${g},${b})`;
+        ctx.textBaseline = 'top';
+
+        const lines = td.text.split('\n');
+        const lineHeight = Math.round(td.fontSize * 1.2);
+        for (let li = 0; li < lines.length; li++) {
+            const ty = layer.offsetY + li * lineHeight;
+            ctx.fillText(lines[li], layer.offsetX, ty);
+            if (td.underline) {
+                const metrics = ctx.measureText(lines[li]);
+                ctx.fillRect(layer.offsetX, ty + td.fontSize, metrics.width, 1);
+            }
+        }
+
+        const tmpData = ctx.getImageData(0, 0, docW, docH).data;
+        layer.data = new Uint16Array(docW * docH).fill(TRANSPARENT);
+        layer.width = docW;
+        layer.height = docH;
+        layer.offsetX = 0;
+        layer.offsetY = 0;
+        if (td.antialiased) {
+            const colors = this.doc.palette.colors;
+            for (let i = 0; i < docW * docH; i++) {
+                const off = i * 4;
+                const a = tmpData[off + 3];
+                if (a < 8) continue;
+                const alpha = a / 255;
+                const mr = Math.round(r * alpha);
+                const mg = Math.round(g * alpha);
+                const mb = Math.round(b * alpha);
+                let bestDist = Infinity, bestIdx = 0;
+                for (let j = 0; j < 256; j++) {
+                    const [pr, pg, pb] = colors[j];
+                    const dist = (mr - pr) ** 2 + (mg - pg) ** 2 + (mb - pb) ** 2;
+                    if (dist < bestDist) { bestDist = dist; bestIdx = j; }
+                    if (dist === 0) break;
+                }
+                layer.data[i] = bestIdx;
+            }
+        } else {
+            for (let i = 0; i < docW * docH; i++) {
+                if (tmpData[i * 4 + 3] >= 128) {
+                    layer.data[i] = td.colorIndex;
+                }
+            }
+        }
+        layer.type = 'raster';
+        layer.textData = null;
         this.bus.emit('layer-changed');
         this.bus.emit('document-changed');
     }

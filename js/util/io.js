@@ -19,6 +19,8 @@ export function savePix8(doc) {
             height: l.height,
             offsetX: l.offsetX,
             offsetY: l.offsetY,
+            type: l.type || 'raster',
+            textData: l.textData || null,
         })),
         activeLayerIndex: doc.activeLayerIndex,
         fgColorIndex: doc.fgColorIndex,
@@ -77,6 +79,8 @@ export function loadPix8(arrayBuffer) {
         layer.locked = layerMeta.locked;
         layer.offsetX = layerMeta.offsetX ?? 0;
         layer.offsetY = layerMeta.offsetY ?? 0;
+        layer.type = layerMeta.type || 'raster';
+        layer.textData = layerMeta.textData || null;
         const layerByteSize = lw * lh * 2;
         const u8View = new Uint8Array(layer.data.buffer, layer.data.byteOffset, layer.data.byteLength);
         u8View.set(bytes.slice(offset, offset + layerByteSize));

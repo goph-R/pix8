@@ -38,8 +38,10 @@ export class UndoManager {
             bg.offsetX !== afterGeometry.offsetX || bg.offsetY !== afterGeometry.offsetY) {
             layerChanged = true;
         } else {
-            for (let i = 0; i < afterData.length; i++) {
-                if (afterData[i] !== this._snapshot[i]) {
+            const afterArr = afterData.data || afterData;
+            const beforeArr = this._snapshot.data || this._snapshot;
+            for (let i = 0; i < afterArr.length; i++) {
+                if (afterArr[i] !== beforeArr[i]) {
                     layerChanged = true;
                     break;
                 }

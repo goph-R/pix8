@@ -36,6 +36,7 @@ export class Toolbar {
             'Free Transform',
             'sep',
             'Mirror',
+            'Text',
         ];
 
         for (const item of layout) {

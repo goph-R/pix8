@@ -20,6 +20,12 @@ export class Renderer {
         for (const layer of layers) {
             if (!layer.visible) continue;
 
+            // Text layer: render via canvas API
+            if (layer.type === 'text' && layer.textData) {
+                this._compositeTextLayer(layer, palette, buf, width, height);
+                continue;
+            }
+
             // Intersection of layer rect and document rect
             const lx0 = Math.max(0, layer.offsetX);
             const ly0 = Math.max(0, layer.offsetY);
@@ -128,5 +134,72 @@ export class Renderer {
         }
 
         return this._imageData;
+    }
+
+    _compositeTextLayer(layer, palette, buf, docW, docH) {
+        const td = layer.textData;
+        const [r, g, b] = palette.getColor(td.colorIndex);
+
+        const tmpCanvas = document.createElement('canvas');
+        tmpCanvas.width = docW;
+        tmpCanvas.height = docH;
+        const ctx = tmpCanvas.getContext('2d');
+
+        const style = (td.italic ? 'italic ' : '') + (td.bold ? 'bold ' : '');
+        ctx.font = `${style}${td.fontSize}px ${td.fontFamily}`;
+        ctx.fillStyle = `rgb(${r},${g},${b})`;
+        ctx.textBaseline = 'top';
+
+        const lines = td.text.split('\n');
+        const lineHeight = Math.round(td.fontSize * 1.2);
+        for (let li = 0; li < lines.length; li++) {
+            const ty = layer.offsetY + li * lineHeight;
+            ctx.fillText(lines[li], layer.offsetX, ty);
+            if (td.underline) {
+                const metrics = ctx.measureText(lines[li]);
+                ctx.fillRect(layer.offsetX, ty + td.fontSize, metrics.width, 1);
+            }
+        }
+
+        const tmpData = ctx.getImageData(0, 0, docW, docH).data;
+        if (td.antialiased) {
+            // Map anti-aliased pixels to nearest palette color
+            const colors = palette.colors;
+            for (let i = 0; i < docW * docH; i++) {
+                const off = i * 4;
+                const a = tmpData[off + 3];
+                if (a < 8) continue;
+                // Blend text color with existing background
+                const alpha = a / 255;
+                const br = buf[off + 3] ? buf[off] : 0;
+                const bg = buf[off + 3] ? buf[off + 1] : 0;
+                const bb = buf[off + 3] ? buf[off + 2] : 0;
+                const mr = Math.round(r * alpha + br * (1 - alpha));
+                const mg = Math.round(g * alpha + bg * (1 - alpha));
+                const mb = Math.round(b * alpha + bb * (1 - alpha));
+                // Find nearest palette color
+                let bestDist = Infinity, bestIdx = 0;
+                for (let j = 0; j < 256; j++) {
+                    const [pr, pg, pb] = colors[j];
+                    const dist = (mr - pr) ** 2 + (mg - pg) ** 2 + (mb - pb) ** 2;
+                    if (dist < bestDist) { bestDist = dist; bestIdx = j; }
+                    if (dist === 0) break;
+                }
+                const [fr, fg, fb] = colors[bestIdx];
+                buf[off] = fr;
+                buf[off + 1] = fg;
+                buf[off + 2] = fb;
+                buf[off + 3] = 255;
+            }
+        } else {
+            for (let i = 0; i < docW * docH; i++) {
+                const off = i * 4;
+                if (tmpData[off + 3] < 128) continue;
+                buf[off] = r;
+                buf[off + 1] = g;
+                buf[off + 2] = b;
+                buf[off + 3] = 255;
+            }
+        }
     }
 }

@@ -46,11 +46,18 @@ export class LayersPanel {
             });
 
             // Thumbnail
-            const thumb = document.createElement('canvas');
-            thumb.className = 'layer-thumbnail';
-            thumb.width = 32;
-            thumb.height = 32;
-            this._drawThumbnail(thumb, layer);
+            let thumb;
+            if (layer.type === 'text') {
+                thumb = document.createElement('div');
+                thumb.className = 'layer-thumbnail layer-text-icon';
+                thumb.textContent = 'T';
+            } else {
+                thumb = document.createElement('canvas');
+                thumb.className = 'layer-thumbnail';
+                thumb.width = 32;
+                thumb.height = 32;
+                this._drawThumbnail(thumb, layer);
+            }
 
             // Name
             const name = document.createElement('span');

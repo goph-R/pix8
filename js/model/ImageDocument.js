@@ -106,6 +106,10 @@ export class ImageDocument {
     getUsedColorIndices() {
         const used = new Set();
         for (const layer of this.layers) {
+            if (layer.type === 'text' && layer.textData) {
+                used.add(layer.textData.colorIndex);
+                continue;
+            }
             const data = layer.data;
             for (let i = 0; i < data.length; i++) {
                 const v = data[i];
@@ -118,6 +122,10 @@ export class ImageDocument {
     getColorHistogram() {
         const counts = new Uint32Array(256);
         for (const layer of this.layers) {
+            if (layer.type === 'text' && layer.textData) {
+                counts[layer.textData.colorIndex]++;
+                continue;
+            }
             const data = layer.data;
             for (let i = 0; i < data.length; i++) {
                 const v = data[i];
@@ -129,6 +137,13 @@ export class ImageDocument {
 
     remapColorIndices(mapping) {
         for (const layer of this.layers) {
+            if (layer.type === 'text' && layer.textData) {
+                const v = layer.textData.colorIndex;
+                if (mapping[v] !== undefined) {
+                    layer.textData.colorIndex = mapping[v];
+                }
+                continue;
+            }
             const data = layer.data;
             for (let i = 0; i < data.length; i++) {
                 const v = data[i];

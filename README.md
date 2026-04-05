@@ -27,6 +27,9 @@ A browser-based 256-color indexed pixel art editor inspired by VGA-era graphics 
 - **Clipboard** -- Cut (Ctrl+X), Copy (Ctrl+C), Copy Merged (Ctrl+Shift+C), Paste (Ctrl+V), Paste in Place (Ctrl+Shift+V); paste creates a new layer with automatic palette color remapping between documents
 - **System clipboard paste** -- Ctrl+V reads images from system clipboard, maps to current palette with dithering options (None/Floyd-Steinberg/Ordered), pastes as new layer
 - **Truecolor image import** -- File > Open supports PNG/JPG/GIF/WebP with quantization dialog (color count + dithering mode)
+- **Text tool** -- create text layers with configurable font, size, bold/italic/underline, and color (W shortcut); click text layer to edit, palette color picker in dialog
+- **Anti-aliased text** -- text layers support anti-aliased rendering with automatic palette color mapping (enabled by default)
+- **Convert to Bitmap** -- Layer menu option to rasterize text layers to pixel data, respects anti-aliasing
 - **Brush capture** -- set brush from selection (Ctrl+B) to capture pixels as a custom brush stamp
 - **GrafX2-style palette editor** -- full palette management dialog with toolbar, vertical RGB sliders, range selection (drag to select), color preview strip
 - **Palette operations** -- Swap, X-Swap (with pixel remap), Copy, Flip, X-Flip, Neg, Gray, Spread, Merge, Sort (Hue/Lightness/Histogram), Reduce (median-cut), Zap Unused, Used highlight
@@ -35,7 +38,7 @@ A browser-based 256-color indexed pixel art editor inspired by VGA-era graphics 
 - **Palette undo** -- per-operation undo within the dialog, plus document-level undo on OK (Ctrl+Z reverts entire palette edit session)
 - **Color picker** -- samples from the merged visible image, not just the active layer
 - **Image rotation** -- Image menu: Rotate Left / Rotate Right (90-degree, affects all layers, swaps dimensions)
-- **Layer menu** -- Merge All (flatten), Merge Selected (Ctrl+click layers to multi-select)
+- **Layer menu** -- Merge All (flatten), Merge Selected (Ctrl+click layers to multi-select), Convert to Bitmap (text layers)
 - **Multi-layer selection** -- Ctrl+click layers in the panel to select multiple, active layer always selected, used for Merge Selected
 - **Undo/Redo** -- Ctrl+Z / Ctrl+Shift+Z, 50-step history (includes layer geometry and selection changes)
 - **File I/O** -- save/load `.pix8` projects, import/export 8-bit BMP and PCX, export PNG, PAL palette format (raw 6-bit and JASC-PAL 8-bit), open truecolor images (PNG/JPG/GIF/WebP)
@@ -66,6 +69,7 @@ Then open http://localhost:3000 in your browser.
 | G | Flood Fill tool |
 | M | Rectangle Select tool |
 | T | Free Transform tool |
+| W | Text tool |
 | X | Swap FG/BG colors |
 | 1 | Reset brush to default (1px) |
 | +/- | Zoom in/out |

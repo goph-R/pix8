@@ -11,6 +11,8 @@ export class Layer {
         this.offsetY = 0;
         this.visible = true;
         this.locked = false;
+        this.type = 'raster';    // 'raster' or 'text'
+        this.textData = null;    // { text, fontFamily, fontSize, bold, italic, underline, colorIndex }
         // Uint16Array so we can store 0-255 (valid palette) + 256 (transparent)
         this.data = new Uint16Array(width * height);
         this.data.fill(TRANSPARENT);
@@ -119,12 +121,18 @@ export class Layer {
         copy.offsetY = this.offsetY;
         copy.visible = this.visible;
         copy.locked = this.locked;
+        copy.type = this.type;
+        copy.textData = this.textData ? { ...this.textData } : null;
         copy.data.set(this.data);
         return copy;
     }
 
     snapshotData() {
-        return this.data.slice();
+        return {
+            data: this.data.slice(),
+            type: this.type,
+            textData: this.textData ? { ...this.textData } : null,
+        };
     }
 
     snapshotGeometry() {
@@ -136,11 +144,26 @@ export class Layer {
         };
     }
 
-    restoreSnapshot(data, geometry) {
+    restoreSnapshot(snapshot, geometry) {
         this.width = geometry.width;
         this.height = geometry.height;
         this.offsetX = geometry.offsetX;
         this.offsetY = geometry.offsetY;
-        this.data = data.slice();
+        if (snapshot instanceof Uint16Array || ArrayBuffer.isView(snapshot)) {
+            // Legacy format: raw data array
+            this.data = snapshot.slice();
+        } else {
+            // New format: { data, type, textData }
+            this.data = snapshot.data.slice();
+            this.type = snapshot.type || 'raster';
+            this.textData = snapshot.textData ? { ...snapshot.textData } : null;
+        }
+    }
+
+    static createText(name, textData, docWidth, docHeight) {
+        const layer = new Layer(name, docWidth, docHeight);
+        layer.type = 'text';
+        layer.textData = { ...textData };
+        return layer;
     }
 }

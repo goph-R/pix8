@@ -123,7 +123,8 @@ export class CanvasView {
         this.container.addEventListener('contextmenu', (e) => e.preventDefault());
 
         document.addEventListener('keydown', (e) => {
-            if (e.code === 'Space' && !e.repeat) {
+            const tag = e.target.tagName;
+            if (e.code === 'Space' && !e.repeat && tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT') {
                 this._spaceDown = true;
                 this.container.style.cursor = 'grab';
                 e.preventDefault();
