@@ -6,7 +6,7 @@ export class BrushTool extends BaseTool {
         super(doc, bus, canvasView);
         this.name = 'Brush';
         this.shortcut = 'B';
-        this.icon = `<svg viewBox="0 0 20 20"><path d="M3 17l4-1-3-3-1 4zm4.5-1.5l8-8-3-3-8 8 3 3zm9-9l1-1a1.4 1.4 0 00-2-2l-1 1 2 2z"/></svg>`;
+        this.icon = `<svg viewBox="0 0 20 20"><path d="M15 2l3 3-2 2-3-3 2-2zM5 12l8-8 3 3-8 8H5v-3z"/><path d="M2 18h5" stroke-width="1.5"/></svg>`;
         this._lastX = null;
         this._lastY = null;
         this._color = undefined;
