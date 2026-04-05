@@ -1,0 +1,49 @@
+#tab-bar {
+    grid-area: tabbar;
+    display: flex;
+    background: var(--bg-primary);
+    border-bottom: 1px solid var(--border);
+    height: 28px;
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+.tab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 12px;
+    font-size: 12px;
+    color: var(--text-dim);
+    border-right: 1px solid var(--border);
+    cursor: pointer;
+    white-space: nowrap;
+    user-select: none;
+    min-width: 0;
+}
+
+.tab:hover {
+    background: var(--bg-hover);
+}
+
+.tab.active {
+    background: var(--bg-panel);
+    color: var(--text-bright);
+}
+
+.tab-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 150px;
+}
+
+.tab-close {
+    font-size: 14px;
+    line-height: 1;
+    opacity: 0.4;
+    cursor: pointer;
+}
+
+.tab-close:hover {
+    opacity: 1;
+}
