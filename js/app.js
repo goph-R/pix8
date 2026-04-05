@@ -242,6 +242,22 @@ class App {
 
         // Create first tab
         this._createTab('Untitled');
+
+        // Mouse wheel on number inputs
+        document.addEventListener('wheel', (e) => {
+            if (e.target.tagName === 'INPUT' && e.target.type === 'number') {
+                e.preventDefault();
+                const input = e.target;
+                const step = parseFloat(input.step) || 1;
+                const min = input.min !== '' ? parseFloat(input.min) : -Infinity;
+                const max = input.max !== '' ? parseFloat(input.max) : Infinity;
+                const val = parseFloat(input.value) || 0;
+                const delta = e.deltaY < 0 ? step : -step;
+                input.value = Math.max(min, Math.min(max, val + delta));
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        }, { passive: false });
     }
 
     // ── Tab Management ──────────────────────────────────────────────

@@ -15,6 +15,7 @@ export function savePix8(doc) {
             name: l.name,
             visible: l.visible,
             locked: l.locked,
+            opacity: l.opacity,
             width: l.width,
             height: l.height,
             offsetX: l.offsetX,
@@ -77,6 +78,7 @@ export function loadPix8(arrayBuffer) {
         const layer = new Layer(layerMeta.name, lw, lh);
         layer.visible = layerMeta.visible;
         layer.locked = layerMeta.locked;
+        layer.opacity = layerMeta.opacity ?? 1;
         layer.offsetX = layerMeta.offsetX ?? 0;
         layer.offsetY = layerMeta.offsetY ?? 0;
         layer.type = layerMeta.type || 'raster';

@@ -11,6 +11,7 @@ export class Layer {
         this.offsetY = 0;
         this.visible = true;
         this.locked = false;
+        this.opacity = 1.0;      // 0.0 - 1.0
         this.type = 'raster';    // 'raster' or 'text'
         this.textData = null;    // { text, fontFamily, fontSize, bold, italic, underline, colorIndex }
         // Uint16Array so we can store 0-255 (valid palette) + 256 (transparent)
@@ -121,6 +122,7 @@ export class Layer {
         copy.offsetY = this.offsetY;
         copy.visible = this.visible;
         copy.locked = this.locked;
+        copy.opacity = this.opacity;
         copy.type = this.type;
         copy.textData = this.textData ? { ...this.textData } : null;
         copy.data.set(this.data);

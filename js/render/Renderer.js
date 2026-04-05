@@ -37,6 +37,8 @@ export class Renderer {
             const layerOx = layer.offsetX;
             const layerOy = layer.offsetY;
 
+            const opacity = layer.opacity !== undefined ? layer.opacity : 1;
+
             for (let dy = ly0; dy < ly1; dy++) {
                 const localY = dy - layerOy;
                 const localRowStart = localY * layerW - layerOx;
@@ -46,10 +48,34 @@ export class Renderer {
                     if (colorIndex === TRANSPARENT) continue;
                     const [r, g, b] = palette.getColor(colorIndex);
                     const off = (docRowStart + dx) * 4;
-                    buf[off] = r;
-                    buf[off + 1] = g;
-                    buf[off + 2] = b;
-                    buf[off + 3] = 255;
+                    if (opacity >= 1) {
+                        buf[off] = r;
+                        buf[off + 1] = g;
+                        buf[off + 2] = b;
+                        buf[off + 3] = 255;
+                    } else {
+                        // Blend with background using palette
+                        const br = buf[off + 3] ? buf[off] : 0;
+                        const bg = buf[off + 3] ? buf[off + 1] : 0;
+                        const bb = buf[off + 3] ? buf[off + 2] : 0;
+                        const mr = Math.round(r * opacity + br * (1 - opacity));
+                        const mg = Math.round(g * opacity + bg * (1 - opacity));
+                        const mb = Math.round(b * opacity + bb * (1 - opacity));
+                        // Find nearest palette color
+                        let bestDist = Infinity, bestIdx = 0;
+                        const colors = palette.colors;
+                        for (let j = 0; j < 256; j++) {
+                            const [pr, pg, pb] = colors[j];
+                            const dist = (mr - pr) ** 2 + (mg - pg) ** 2 + (mb - pb) ** 2;
+                            if (dist < bestDist) { bestDist = dist; bestIdx = j; }
+                            if (dist === 0) break;
+                        }
+                        const [fr, fg, fb] = colors[bestIdx];
+                        buf[off] = fr;
+                        buf[off + 1] = fg;
+                        buf[off + 2] = fb;
+                        buf[off + 3] = 255;
+                    }
                 }
             }
         }
@@ -162,6 +188,7 @@ export class Renderer {
         }
 
         const tmpData = ctx.getImageData(0, 0, docW, docH).data;
+        const layerOpacity = layer.opacity !== undefined ? layer.opacity : 1;
         if (td.antialiased) {
             // Map anti-aliased pixels to nearest palette color
             const colors = palette.colors;
@@ -169,8 +196,8 @@ export class Renderer {
                 const off = i * 4;
                 const a = tmpData[off + 3];
                 if (a < 8) continue;
-                // Blend text color with existing background
-                const alpha = a / 255;
+                // Blend text color with existing background, factoring in layer opacity
+                const alpha = (a / 255) * layerOpacity;
                 const br = buf[off + 3] ? buf[off] : 0;
                 const bg = buf[off + 3] ? buf[off + 1] : 0;
                 const bb = buf[off + 3] ? buf[off + 2] : 0;
@@ -192,13 +219,35 @@ export class Renderer {
                 buf[off + 3] = 255;
             }
         } else {
+            const colors = palette.colors;
             for (let i = 0; i < docW * docH; i++) {
                 const off = i * 4;
                 if (tmpData[off + 3] < 128) continue;
-                buf[off] = r;
-                buf[off + 1] = g;
-                buf[off + 2] = b;
-                buf[off + 3] = 255;
+                if (layerOpacity >= 1) {
+                    buf[off] = r;
+                    buf[off + 1] = g;
+                    buf[off + 2] = b;
+                    buf[off + 3] = 255;
+                } else {
+                    const br = buf[off + 3] ? buf[off] : 0;
+                    const bg = buf[off + 3] ? buf[off + 1] : 0;
+                    const bb = buf[off + 3] ? buf[off + 2] : 0;
+                    const mr = Math.round(r * layerOpacity + br * (1 - layerOpacity));
+                    const mg = Math.round(g * layerOpacity + bg * (1 - layerOpacity));
+                    const mb = Math.round(b * layerOpacity + bb * (1 - layerOpacity));
+                    let bestDist = Infinity, bestIdx = 0;
+                    for (let j = 0; j < 256; j++) {
+                        const [pr, pg, pb] = colors[j];
+                        const dist = (mr - pr) ** 2 + (mg - pg) ** 2 + (mb - pb) ** 2;
+                        if (dist < bestDist) { bestDist = dist; bestIdx = j; }
+                        if (dist === 0) break;
+                    }
+                    const [fr, fg, fb] = colors[bestIdx];
+                    buf[off] = fr;
+                    buf[off + 1] = fg;
+                    buf[off + 2] = fb;
+                    buf[off + 3] = 255;
+                }
             }
         }
     }

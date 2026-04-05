@@ -7,6 +7,62 @@
     border-bottom: 1px solid var(--border);
 }
 
+#layer-opacity-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 6px;
+    font-size: 11px;
+    color: var(--text-dim);
+    border-bottom: 1px solid var(--border);
+}
+
+#layer-opacity-row label {
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+#layer-opacity-slider {
+    flex: 1;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: var(--bg-input);
+    border-radius: 2px;
+    outline: none;
+}
+
+#layer-opacity-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+}
+
+#layer-opacity-num {
+    width: 42px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    color: var(--text);
+    font-size: 11px;
+    padding: 1px 2px;
+    text-align: center;
+}
+
+#layer-opacity-num:focus {
+    border-color: var(--accent);
+    outline: none;
+}
+
+#layer-opacity-row.disabled {
+    opacity: 0.4;
+    pointer-events: none;
+}
+
 #layers-list {
     flex: 1;
     overflow-y: auto;

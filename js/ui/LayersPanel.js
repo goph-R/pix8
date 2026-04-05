@@ -4,6 +4,9 @@ export class LayersPanel {
         this.bus = bus;
 
         this.list = document.getElementById('layers-list');
+        this._opacityRow = document.getElementById('layer-opacity-row');
+        this._opacitySlider = document.getElementById('layer-opacity-slider');
+        this._opacityNum = document.getElementById('layer-opacity-num');
 
         document.getElementById('layer-add-btn').addEventListener('click', () => this._addLayer());
         document.getElementById('layer-del-btn').addEventListener('click', () => this._deleteLayer());
@@ -11,13 +14,40 @@ export class LayersPanel {
         document.getElementById('layer-down-btn').addEventListener('click', () => this._moveLayer(1));
         document.getElementById('layer-dup-btn').addEventListener('click', () => this._duplicateLayer());
 
+        this._opacitySlider.addEventListener('input', () => {
+            const val = parseInt(this._opacitySlider.value);
+            this._opacityNum.value = val;
+            this.doc.getActiveLayer().opacity = val / 100;
+            this.bus.emit('layer-changed');
+        });
+        this._opacityNum.addEventListener('change', () => {
+            const val = Math.max(0, Math.min(100, parseInt(this._opacityNum.value) || 100));
+            this._opacitySlider.value = val;
+            this._opacityNum.value = val;
+            this.doc.getActiveLayer().opacity = val / 100;
+            this.bus.emit('layer-changed');
+        });
+
         this.bus.on('layer-changed', () => this.render());
         this.bus.on('document-changed', () => this.render());
+        this.bus.on('active-layer-changed', () => this.render());
 
         this.render();
     }
 
     render() {
+        // Sync opacity controls
+        const activeLayer = this.doc.getActiveLayer();
+        const multiSelected = this.doc.selectedLayerIndices.size >= 2;
+        if (activeLayer && !multiSelected) {
+            const pct = Math.round(activeLayer.opacity * 100);
+            this._opacitySlider.value = pct;
+            this._opacityNum.value = pct;
+            this._opacityRow.classList.remove('disabled');
+        } else {
+            this._opacityRow.classList.add('disabled');
+        }
+
         this.list.innerHTML = '';
 
         // Render layers top-to-bottom (reverse of array order, since array[0] = bottom)
