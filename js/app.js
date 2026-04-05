@@ -711,13 +711,38 @@ class App {
     }
 
     _setupMenuBar() {
+        this._activeMenuName = null;
+        this._activeDropdown = null;
+        this._closeMenuListener = null;
+
         const menuItems = document.querySelectorAll('#menubar .menu-item');
         for (const item of menuItems) {
             item.addEventListener('click', () => {
                 const menu = item.dataset.menu;
-                this._handleMenu(menu);
+                if (this._activeMenuName === menu) {
+                    this._closeActiveMenu();
+                } else {
+                    this._handleMenu(menu);
+                }
+            });
+            item.addEventListener('mouseenter', () => {
+                if (this._activeMenuName && this._activeMenuName !== item.dataset.menu) {
+                    this._handleMenu(item.dataset.menu);
+                }
             });
         }
+    }
+
+    _closeActiveMenu() {
+        if (this._activeDropdown) {
+            this._activeDropdown.remove();
+            this._activeDropdown = null;
+        }
+        if (this._closeMenuListener) {
+            document.removeEventListener('pointerdown', this._closeMenuListener);
+            this._closeMenuListener = null;
+        }
+        this._activeMenuName = null;
     }
 
     _handleMenu(menu) {
@@ -743,9 +768,8 @@ class App {
         }
     }
 
-    _showDropdown(anchorEl, items) {
-        // Remove any existing dropdown
-        document.querySelectorAll('.dropdown-menu').forEach(d => d.remove());
+    _showDropdown(anchorEl, menuName, items) {
+        this._closeActiveMenu();
 
         const dropdown = document.createElement('div');
         dropdown.className = 'dropdown-menu';
@@ -779,7 +803,7 @@ class App {
                 el.addEventListener('mouseenter', () => { el.style.background = '#007acc'; });
                 el.addEventListener('mouseleave', () => { el.style.background = 'none'; });
                 el.addEventListener('click', () => {
-                    dropdown.remove();
+                    this._closeActiveMenu();
                     item.action();
                 });
             }
@@ -787,20 +811,21 @@ class App {
         }
 
         document.body.appendChild(dropdown);
+        this._activeDropdown = dropdown;
+        this._activeMenuName = menuName || null;
 
         // Close on click outside
-        const close = (e) => {
-            if (!dropdown.contains(e.target)) {
-                dropdown.remove();
-                document.removeEventListener('pointerdown', close);
+        this._closeMenuListener = (e) => {
+            if (!dropdown.contains(e.target) && !e.target.closest('#menubar')) {
+                this._closeActiveMenu();
             }
         };
-        setTimeout(() => document.addEventListener('pointerdown', close), 0);
+        setTimeout(() => document.addEventListener('pointerdown', this._closeMenuListener), 0);
     }
 
     _showFileMenu() {
         const anchor = document.querySelector('[data-menu="file"]');
-        this._showDropdown(anchor, [
+        this._showDropdown(anchor, 'file', [
             { label: 'New...', shortcut: '', action: () => this._newDocument() },
             { label: 'Open...', shortcut: 'Ctrl+O', action: () => this._openFile() },
             { label: 'Close Tab', disabled: this._tabs.length <= 1, action: () => this._closeTab(this._activeTabId) },
@@ -817,7 +842,7 @@ class App {
 
     _showEditMenu() {
         const anchor = document.querySelector('[data-menu="edit"]');
-        this._showDropdown(anchor, [
+        this._showDropdown(anchor, 'edit', [
             { label: 'Undo', shortcut: 'Ctrl+Z', action: () => this.undoManager.undo() },
             { label: 'Redo', shortcut: 'Ctrl+Shift+Z', action: () => this.undoManager.redo() },
             '-',
@@ -837,7 +862,7 @@ class App {
         const anchor = document.querySelector('[data-menu="selection"]');
         const sel = this.doc.selection;
         const hasSel = sel.active;
-        this._showDropdown(anchor, [
+        this._showDropdown(anchor, 'selection', [
             { label: 'Select All', shortcut: 'Ctrl+A', action: () => {
                 if (sel.hasFloating()) sel.commitFloating(this.doc.getActiveLayer());
                 sel.selectAll();
@@ -1106,7 +1131,7 @@ class App {
 
     _showViewMenu() {
         const anchor = document.querySelector('[data-menu="view"]');
-        this._showDropdown(anchor, [
+        this._showDropdown(anchor, 'view', [
             { label: 'Zoom In', shortcut: '+', action: () => this._zoomStep(1) },
             { label: 'Zoom Out', shortcut: '-', action: () => this._zoomStep(-1) },
             '-',
@@ -1179,7 +1204,7 @@ class App {
 
     _showImageMenu() {
         const anchor = document.querySelector('[data-menu="image"]');
-        this._showDropdown(anchor, [
+        this._showDropdown(anchor, 'image', [
             { label: 'Resize...', action: () => this._showResizeDialog() },
             '-',
             { label: 'Rotate Left', action: () => this._rotateImage(false) },
@@ -1198,7 +1223,7 @@ class App {
         const multiSelected = sel.size >= 2;
         const activeLayer = this.doc.getActiveLayer();
         const isTextLayer = activeLayer && activeLayer.type === 'text';
-        this._showDropdown(anchor, [
+        this._showDropdown(anchor, 'layer', [
             { label: 'Convert to Bitmap', disabled: !isTextLayer, action: () => this._convertTextToBitmap() },
             '-',
             { label: 'Merge Selected', disabled: !multiSelected, action: () => this._mergeSelectedLayers() },

@@ -147,6 +147,15 @@ export class Toolbar {
             if (entry) this.setActiveTool(entry.toolName);
         });
 
+        // Hover to switch flyout when one is already open
+        wrapper.addEventListener('mouseenter', () => {
+            if (this._openFlyout && this._openFlyout !== flyout) {
+                this._closeFlyout();
+                flyout.classList.add('open');
+                this._openFlyout = flyout;
+            }
+        });
+
         this.container.insertBefore(wrapper, colorSelector);
         // Also track the main button for active highlighting
         this._buttons.push({ btn: mainBtn, toolName: firstTool.name, isGroupMain: true, groupTools: group.tools });
