@@ -1261,24 +1261,27 @@ class App {
         okBtn.textContent = 'OK';
         okBtn.style.cssText = 'padding:4px 14px;border:1px solid var(--accent);border-radius:3px;background:var(--accent);color:var(--text-bright);cursor:pointer;font-size:12px;';
         okBtn.addEventListener('click', () => {
-            const numColors = Math.max(1, Math.min(256, parseInt(colorsInput.value) || 256));
-            const ditherMode = ditherSelect.value;
-            const result = quantizeImage(rgbaData, width, height, numColors, ditherMode);
+            okBtn.disabled = true;
+            cancelBtn.disabled = true;
+            info.textContent = 'Converting, please wait...';
+            setTimeout(() => {
+                const numColors = Math.max(1, Math.min(256, parseInt(colorsInput.value) || 256));
+                const ditherMode = ditherSelect.value;
+                const result = quantizeImage(rgbaData, width, height, numColors, ditherMode);
 
-            const doc = new ImageDocument(width, height);
-            // Set palette
-            for (let i = 0; i < 256; i++) {
-                if (i < result.palette.length) {
-                    doc.palette.setColor(i, ...result.palette[i]);
-                } else {
-                    doc.palette.setColor(i, 0, 0, 0);
+                const doc = new ImageDocument(width, height);
+                for (let i = 0; i < 256; i++) {
+                    if (i < result.palette.length) {
+                        doc.palette.setColor(i, ...result.palette[i]);
+                    } else {
+                        doc.palette.setColor(i, 0, 0, 0);
+                    }
                 }
-            }
-            // Set pixel data
-            const layer = doc.getActiveLayer();
-            layer.data.set(result.indices);
-            overlay.remove();
-            callback(doc);
+                const layer = doc.getActiveLayer();
+                layer.data.set(result.indices);
+                overlay.remove();
+                callback(doc);
+            }, 16);
         });
         footer.appendChild(cancelBtn);
         footer.appendChild(okBtn);
@@ -1351,10 +1354,15 @@ class App {
         okBtn.textContent = 'OK';
         okBtn.style.cssText = 'padding:4px 14px;border:1px solid var(--accent);border-radius:3px;background:var(--accent);color:var(--text-bright);cursor:pointer;font-size:12px;';
         okBtn.addEventListener('click', () => {
-            const palette = this.doc.palette.export();
-            const indices = mapToPalette(rgbaData, width, height, palette, ditherSelect.value);
-            overlay.remove();
-            callback(indices, width, height);
+            okBtn.disabled = true;
+            cancelBtn.disabled = true;
+            info.textContent = 'Converting, please wait...';
+            setTimeout(() => {
+                const palette = this.doc.palette.export();
+                const indices = mapToPalette(rgbaData, width, height, palette, ditherSelect.value);
+                overlay.remove();
+                callback(indices, width, height);
+            }, 16);
         });
         footer.appendChild(cancelBtn);
         footer.appendChild(okBtn);
