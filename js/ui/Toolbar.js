@@ -7,6 +7,7 @@ export class Toolbar {
         this.activeTool = null;
         this._buttons = []; // { btn, toolName, groupEl? }
         this._openFlyout = null;
+        this._flyoutBrowsing = false; // true while in flyout browsing mode
         this._disabledTools = new Set();
 
         this._render();
@@ -21,7 +22,7 @@ export class Toolbar {
 
         // Close flyout on click outside (but not on group buttons — they handle toggle)
         document.addEventListener('pointerdown', (e) => {
-            if (this._openFlyout && !this._openFlyout.contains(e.target) && !e.target.closest('.tool-group')) {
+            if ((this._openFlyout || this._flyoutBrowsing) && !e.target.closest('.tool-group') && !(this._openFlyout && this._openFlyout.contains(e.target))) {
                 this._closeFlyout();
             }
         });
@@ -62,7 +63,7 @@ export class Toolbar {
                     this.setActiveTool(tool.name);
                 });
                 btn.addEventListener('mouseenter', () => {
-                    if (this._openFlyout) this._closeFlyout();
+                    if (this._openFlyout) this._hideFlyout();
                 });
                 this.container.insertBefore(btn, colorSelector);
                 this._buttons.push({ btn, toolName: tool.name });
@@ -141,19 +142,20 @@ export class Toolbar {
             if (flyout === this._openFlyout) {
                 this._closeFlyout();
             } else {
-                this._closeFlyout();
+                this._hideFlyout();
                 flyout.classList.add('open');
                 this._openFlyout = flyout;
+                this._flyoutBrowsing = true;
             }
             // Always activate the tool shown on the group button
             const entry = this._buttons.find(b => b.btn === mainBtn && b.isGroupMain);
             if (entry) this.setActiveTool(entry.toolName);
         });
 
-        // Hover to switch flyout when one is already open
+        // Hover to switch flyout when in browsing mode
         wrapper.addEventListener('mouseenter', () => {
-            if (this._openFlyout && this._openFlyout !== flyout) {
-                this._closeFlyout();
+            if (this._flyoutBrowsing) {
+                this._hideFlyout();
                 flyout.classList.add('open');
                 this._openFlyout = flyout;
             }
@@ -187,6 +189,15 @@ export class Toolbar {
     }
 
     _closeFlyout() {
+        if (this._openFlyout) {
+            this._openFlyout.classList.remove('open');
+            this._openFlyout = null;
+        }
+        this._flyoutBrowsing = false;
+    }
+
+    _hideFlyout() {
+        // Hide visually but stay in browsing mode
         if (this._openFlyout) {
             this._openFlyout.classList.remove('open');
             this._openFlyout = null;
