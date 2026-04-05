@@ -61,6 +61,9 @@ export class Toolbar {
                     this._closeFlyout();
                     this.setActiveTool(tool.name);
                 });
+                btn.addEventListener('mouseenter', () => {
+                    if (this._openFlyout) this._closeFlyout();
+                });
                 this.container.insertBefore(btn, colorSelector);
                 this._buttons.push({ btn, toolName: tool.name });
             } else {
