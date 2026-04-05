@@ -486,7 +486,20 @@ export function importPAL(bytes) {
 
 // ─── File download helper ───────────────────────────────────────────────
 
-export function downloadBlob(blob, filename) {
+export async function downloadBlob(blob, filename) {
+    if (window.electronAPI) {
+        const ext = filename.split('.').pop().toLowerCase();
+        const filters = [{ name: ext.toUpperCase() + ' files', extensions: [ext] }];
+        const filePath = await window.electronAPI.showSaveDialog({
+            defaultPath: filename,
+            filters,
+        });
+        if (filePath) {
+            const arrayBuffer = await blob.arrayBuffer();
+            await window.electronAPI.saveFile(filePath, arrayBuffer);
+        }
+        return;
+    }
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;

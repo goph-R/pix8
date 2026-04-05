@@ -2,10 +2,39 @@
   "name": "pix8",
   "version": "0.1.0",
   "description": "256-color indexed pixel art editor",
+  "main": "electron-main.js",
   "scripts": {
-    "start": "npx serve ."
+    "start": "npx serve .",
+    "electron": "electron .",
+    "dist": "electron-builder",
+    "dist:linux": "electron-builder --linux",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac"
+  },
+  "build": {
+    "appId": "net.dynart.pix8",
+    "productName": "Pix8",
+    "files": [
+      "electron-main.js",
+      "electron-preload.js",
+      "index.html",
+      "js/**/*",
+      "css/**/*"
+    ],
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "category": "Graphics"
+    },
+    "win": {
+      "target": ["nsis", "portable"]
+    },
+    "mac": {
+      "target": ["dmg"]
+    }
   },
   "devDependencies": {
+    "electron": "^35.0.0",
+    "electron-builder": "^26.0.0",
     "serve": "^14.2.6"
   }
 }
