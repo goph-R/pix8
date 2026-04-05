@@ -1,17 +1,23 @@
 export class Toolbar {
-    constructor(tools, bus) {
+    constructor(tools, bus, doc) {
         this.tools = tools;
         this.bus = bus;
+        this.doc = doc;
         this.container = document.getElementById('toolbar-area');
         this.activeTool = null;
         this._buttons = []; // { btn, toolName, groupEl? }
         this._openFlyout = null;
+        this._disabledTools = new Set();
 
         this._render();
 
         this.bus.on('switch-tool', (name) => {
             this.setActiveTool(name);
         });
+
+        this.bus.on('layer-changed', () => this.updateEnabledState());
+        this.bus.on('document-changed', () => this.updateEnabledState());
+        this.bus.on('active-layer-changed', () => this.updateEnabledState());
 
         // Close flyout on click outside
         document.addEventListener('pointerdown', (e) => {
@@ -176,12 +182,52 @@ export class Toolbar {
         }
     }
 
+    updateEnabledState() {
+        const layer = this.doc.getActiveLayer();
+        const isText = layer && layer.type === 'text';
+        const multiSelected = this.doc.selectedLayerIndices.size >= 2;
+
+        // Text layer: only Move and Text allowed
+        // Multi-selected: only Move allowed
+        const alwaysEnabled = ['Move'];
+        const textEnabled = ['Move', 'Text'];
+
+        this._disabledTools.clear();
+        for (const tool of this.tools) {
+            let disabled = false;
+            if (multiSelected) {
+                disabled = !alwaysEnabled.includes(tool.name);
+            } else if (isText) {
+                disabled = !textEnabled.includes(tool.name);
+            }
+            if (disabled) this._disabledTools.add(tool.name);
+        }
+
+        for (const entry of this._buttons) {
+            if (entry.isGroupMain) {
+                const anyEnabled = entry.groupTools.some(n => !this._disabledTools.has(n));
+                entry.btn.disabled = !anyEnabled;
+            } else {
+                entry.btn.disabled = this._disabledTools.has(entry.toolName);
+            }
+        }
+
+        // If current tool got disabled, switch to Move
+        if (this.activeTool && this._disabledTools.has(this.activeTool.name)) {
+            this.setActiveTool('Move');
+        }
+    }
+
     setActiveTool(name) {
         for (const entry of this._buttons) {
             if (entry.isGroupMain) {
-                // Highlight if any tool in this group is active
                 const isActive = entry.groupTools.includes(name);
                 entry.btn.classList.toggle('active', isActive);
+                // Update group button icon to show the selected tool
+                if (isActive && entry.toolName !== name) {
+                    const tool = this.tools.find(t => t.name === name);
+                    if (tool) this._updateGroupButton(entry.btn, tool);
+                }
             } else {
                 entry.btn.classList.toggle('active', entry.toolName === name);
             }

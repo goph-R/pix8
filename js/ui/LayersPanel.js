@@ -80,6 +80,7 @@ export class LayersPanel {
                             sel.add(i);
                         }
                     }
+                    this.bus.emit('layer-changed');
                 } else {
                     this.doc.selectedLayerIndices.clear();
                     this.doc.selectedLayerIndices.add(i);

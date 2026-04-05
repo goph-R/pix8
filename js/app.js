@@ -152,7 +152,7 @@ class App {
         this._freeTransformTool = this._tools.find(t => t.name === 'Free Transform');
 
         // Toolbar
-        this.toolbar = new Toolbar(this._tools, this.bus);
+        this.toolbar = new Toolbar(this._tools, this.bus, this.doc);
 
         // Wire active tool to canvas view (must be before setActiveTool)
         this.bus.on('tool-changed', (tool) => {
@@ -314,6 +314,7 @@ class App {
         this.colorSelector.doc = doc;
         this.palettePanel.doc = doc;
         this.layersPanel.doc = doc;
+        this.toolbar.doc = doc;
         for (const tool of this._tools) {
             tool.doc = doc;
         }
@@ -329,7 +330,9 @@ class App {
     }
 
     _closeTab(id) {
-        if (this._tabs.length <= 1) return; // can't close last tab
+        if (this._tabs.length <= 1) return;
+        const tab = this._tabs.find(t => t.id === id);
+        if (!confirm(`Close "${tab ? tab.name : 'tab'}"?`)) return;
         const idx = this._tabs.findIndex(t => t.id === id);
         if (idx < 0) return;
         this._tabs.splice(idx, 1);
@@ -363,6 +366,12 @@ class App {
         dialog.innerHTML = `
             <h3 style="margin: 0 0 16px 0; font-size: 16px; color: #fff;">New Document</h3>
             <div style="margin-bottom: 12px;">
+                <label style="display: block; font-size: 12px; margin-bottom: 4px; color: #aaa;">Name</label>
+                <input id="new-tab-name" type="text" value="Untitled"
+                    style="width: 100%; padding: 6px; background: #3c3c3c; border: 1px solid #555;
+                    border-radius: 3px; color: #ccc; font-size: 13px; box-sizing: border-box;">
+            </div>
+            <div style="margin-bottom: 12px;">
                 <label style="display: block; font-size: 12px; margin-bottom: 4px; color: #aaa;">Width (px)</label>
                 <input id="new-tab-w" type="number" value="64" min="1" max="1024"
                     style="width: 100%; padding: 6px; background: #3c3c3c; border: 1px solid #555;
@@ -390,6 +399,7 @@ class App {
         overlay.appendChild(dialog);
         document.body.appendChild(overlay);
 
+        const nameInput = dialog.querySelector('#new-tab-name');
         const wInput = dialog.querySelector('#new-tab-w');
         const hInput = dialog.querySelector('#new-tab-h');
 
@@ -417,7 +427,7 @@ class App {
             this.canvasView.offscreen.height = h;
             this.canvasView.renderer = new (this.canvasView.renderer.constructor)(this.doc);
             this.canvasView._centerDocument();
-            this._createTab('Untitled');
+            this._createTab(nameInput.value.trim() || 'Untitled');
             this.bus.emit('palette-changed');
             this.bus.emit('fg-color-changed');
             this.bus.emit('bg-color-changed');
@@ -431,8 +441,8 @@ class App {
             if (e.key === 'Escape') overlay.remove();
         });
 
-        wInput.focus();
-        wInput.select();
+        nameInput.focus();
+        nameInput.select();
     }
 
     // ── Tool Hints ──────────────────────────────────────────────────
@@ -497,7 +507,7 @@ class App {
             // Tool shortcuts
             if (!e.ctrlKey && !e.altKey && !e.metaKey) {
                 const toolName = shortcutMap[e.key.toLowerCase()];
-                if (toolName) {
+                if (toolName && !this.toolbar._disabledTools.has(toolName)) {
                     this.bus.emit('switch-tool', toolName);
                     return;
                 }
@@ -702,6 +712,9 @@ class App {
             case 'edit':
                 this._showEditMenu();
                 break;
+            case 'selection':
+                this._showSelectionMenu();
+                break;
             case 'view':
                 this._showViewMenu();
                 break;
@@ -798,29 +811,94 @@ class App {
             { label: 'Paste', shortcut: 'Ctrl+V', action: () => this._clipboard ? this._paste() : this._pasteFromClipboard() },
             { label: 'Paste in Place', shortcut: 'Ctrl+Shift+V', action: () => this._pasteInPlace() },
             '-',
-            { label: 'Select All', shortcut: 'Ctrl+A', action: () => {
-                const sel = this.doc.selection;
-                if (sel.hasFloating()) sel.commitFloating(this.doc.getActiveLayer());
-                sel.selectAll();
-                this.bus.emit('selection-changed');
-            }},
-            { label: 'Deselect', shortcut: 'Ctrl+D', action: () => {
-                const sel = this.doc.selection;
-                if (sel.active) {
-                    if (sel.hasFloating()) {
-                        this.undoManager.beginOperation();
-                        sel.commitFloating(this.doc.getActiveLayer());
-                        this.undoManager.endOperation();
-                    }
-                    sel.clear();
-                    this.bus.emit('selection-changed');
-                }
-            }},
-            '-',
             { label: 'Clear', shortcut: 'Delete', action: () => this._clearSelection() },
             '-',
             { label: 'Set Brush from Selection', shortcut: 'Ctrl+B', action: () => this._setBrushFromSelection() },
         ]);
+    }
+
+    _showSelectionMenu() {
+        const anchor = document.querySelector('[data-menu="selection"]');
+        const sel = this.doc.selection;
+        const hasSel = sel.active;
+        this._showDropdown(anchor, [
+            { label: 'Select All', shortcut: 'Ctrl+A', action: () => {
+                if (sel.hasFloating()) sel.commitFloating(this.doc.getActiveLayer());
+                sel.selectAll();
+                this.bus.emit('selection-changed');
+            }},
+            { label: 'Deselect', shortcut: 'Ctrl+D', disabled: !hasSel, action: () => {
+                if (sel.hasFloating()) {
+                    this.undoManager.beginOperation();
+                    sel.commitFloating(this.doc.getActiveLayer());
+                    this.undoManager.endOperation();
+                }
+                sel.clear();
+                this.bus.emit('selection-changed');
+            }},
+            '-',
+            { label: 'Expand...', disabled: !hasSel, action: () => this._expandShrinkSelection(1) },
+            { label: 'Shrink...', disabled: !hasSel, action: () => this._expandShrinkSelection(-1) },
+            '-',
+            { label: 'Select by Alpha', action: () => this._selectByAlpha() },
+        ]);
+    }
+
+    _expandShrinkSelection(direction) {
+        const label = direction > 0 ? 'Expand' : 'Shrink';
+        const px = prompt(`${label} selection by (px):`, '1');
+        if (px === null) return;
+        const amount = Math.max(1, parseInt(px) || 1);
+        const sel = this.doc.selection;
+        const { width, height, mask } = sel;
+        const newMask = new Uint8Array(mask);
+
+        for (let iter = 0; iter < amount; iter++) {
+            const src = new Uint8Array(newMask);
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const i = y * width + x;
+                    if (direction > 0) {
+                        // Expand: if any neighbor is selected, select this pixel
+                        if (src[i]) continue;
+                        if ((x > 0 && src[i - 1]) || (x < width - 1 && src[i + 1]) ||
+                            (y > 0 && src[i - width]) || (y < height - 1 && src[i + width])) {
+                            newMask[i] = 1;
+                        }
+                    } else {
+                        // Shrink: if any neighbor is not selected, deselect this pixel
+                        if (!src[i]) continue;
+                        if (x === 0 || x === width - 1 || y === 0 || y === height - 1 ||
+                            !src[i - 1] || !src[i + 1] || !src[i - width] || !src[i + width]) {
+                            newMask[i] = 0;
+                        }
+                    }
+                }
+            }
+        }
+
+        mask.set(newMask);
+        sel._pureShape = null;
+        this.bus.emit('selection-changed');
+    }
+
+    _selectByAlpha() {
+        const layer = this.doc.getActiveLayer();
+        const sel = this.doc.selection;
+        if (sel.hasFloating()) sel.commitFloating(layer);
+        sel.mask.fill(0);
+        const { width, height } = sel;
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                const px = layer.getPixelDoc(x, y);
+                if (px !== TRANSPARENT) {
+                    sel.mask[y * width + x] = 1;
+                }
+            }
+        }
+        sel.active = true;
+        sel._pureShape = null;
+        this.bus.emit('selection-changed');
     }
 
     _copy() {

@@ -25,6 +25,12 @@
     border-color: var(--accent);
 }
 
+.tool-btn:disabled {
+    opacity: 0.3;
+    cursor: default;
+    pointer-events: none;
+}
+
 .tool-btn svg {
     width: 20px;
     height: 20px;

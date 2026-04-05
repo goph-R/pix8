@@ -18,7 +18,7 @@ A browser-based 256-color indexed pixel art editor inspired by VGA-era graphics 
 - **Mirror tool** -- flip image or selection horizontally (click) or vertically (Shift+click)
 - **Selection tools** -- Rectangle and Ellipse selection with resizable handles at edges and corners
 - **Selection modifiers** -- Shift+drag to add to selection, Alt+drag to subtract from selection
-- **Selection operations** -- move selection mask by dragging inside, click to deselect, Select All, Deselect
+- **Selection operations** -- move selection mask by dragging inside, click to deselect; Selection menu: Select All, Deselect, Expand, Shrink, Select by Alpha
 - **Free Transform** -- move, resize, and rotate selected pixels with interactive handles (T shortcut), Ctrl snaps rotation to 22.5-degree increments, commit with Enter, cancel with Escape
 - **Flood Fill** -- fill connected pixels with FG/BG color (G shortcut), respects selection boundaries
 - **Line snapping** -- hold Ctrl while drawing lines to snap to nearest 22.5-degree angle (horizontal, vertical, diagonal)
