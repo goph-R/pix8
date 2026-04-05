@@ -230,6 +230,10 @@ class App {
         this.tabBar = new TabBar(this.bus);
         this.bus.on('tab-switch', (id) => this._switchTab(id));
         this.bus.on('tab-close', (id) => this._closeTab(id));
+        this.bus.on('tab-rename', ({ id, name }) => {
+            const tab = this._tabs.find(t => t.id === id);
+            if (tab) { tab.name = name; this._renderTabs(); }
+        });
 
         // Create first tab
         this._createTab('Untitled');
@@ -1359,15 +1363,10 @@ class App {
     }
 
     _saveProject() {
-        const name = prompt('Save as:', (this._getActiveTab()?.name || 'untitled'));
-        if (!name) return;
         const tab = this._getActiveTab();
-        if (tab) {
-            tab.name = name;
-            this._renderTabs();
-        }
+        const filename = (tab ? tab.name : 'untitled') + '.pix8';
         const blob = savePix8(this.doc);
-        downloadBlob(blob, name + '.pix8');
+        downloadBlob(blob, filename);
     }
 
     _openFile() {

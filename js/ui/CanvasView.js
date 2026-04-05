@@ -28,7 +28,7 @@ export class CanvasView {
         this.offscreenCtx = this.offscreen.getContext('2d');
 
         // Zoom & pan
-        this.zoomIndex = 2; // start at 3x (300%)
+        this.zoomIndex = 1; // start at 2x (200%)
         this.zoom = ZOOM_LEVELS[this.zoomIndex];
         this.panX = 0;
         this.panY = 0;
