@@ -1,0 +1,70 @@
+#frame-panel {
+    display: none;
+    border-top: 1px solid var(--border);
+    background: var(--bg-panel);
+    flex-shrink: 0;
+}
+
+#frame-panel.visible {
+    display: flex;
+    flex-direction: column;
+    height: 90px;
+}
+
+.frame-panel-header {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px 6px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+.frame-panel-header .icon-btn {
+    width: 24px;
+    height: 22px;
+    font-size: 14px;
+    padding: 0;
+}
+
+.frame-list {
+    display: flex;
+    overflow-x: auto;
+    gap: 4px;
+    padding: 4px;
+    flex: 1;
+    align-items: start;
+}
+
+.frame-thumb {
+    flex-shrink: 0;
+    cursor: pointer;
+    border: 2px solid transparent;
+    border-radius: 3px;
+    text-align: center;
+    padding: 2px;
+    background: var(--bg-input);
+}
+
+.frame-thumb:hover {
+    border-color: var(--text-dim);
+}
+
+.frame-thumb.active {
+    border-color: var(--accent);
+}
+
+.frame-thumb canvas {
+    display: block;
+    border: 1px solid var(--border);
+}
+
+.frame-label {
+    font-size: 9px;
+    color: var(--text-dim);
+    margin-top: 1px;
+    max-width: 48px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}

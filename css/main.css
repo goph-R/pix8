@@ -88,8 +88,15 @@ html, body {
 #canvas-area {
     grid-area: canvas;
     background: var(--bg-primary);
+    display: flex;
+    flex-direction: column;
     overflow: hidden;
+}
+
+#canvas-container {
+    flex: 1;
     position: relative;
+    overflow: hidden;
     cursor: crosshair;
 }
 

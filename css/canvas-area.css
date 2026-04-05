@@ -1,5 +1,5 @@
 /* Center work area canvas */
-#canvas-area canvas {
+#canvas-container canvas {
     image-rendering: pixelated;
     image-rendering: crisp-edges;
     -ms-interpolation-mode: nearest-neighbor;
@@ -28,7 +28,7 @@
 }
 
 /* Checkerboard transparency background */
-#canvas-area .checkerboard {
+#canvas-container .checkerboard {
     position: absolute;
     z-index: 0;
     background-image:

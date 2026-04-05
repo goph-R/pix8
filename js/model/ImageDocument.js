@@ -17,6 +17,11 @@ export class ImageDocument {
         this.selection = new Selection(width, height);
         this.selectedLayerIndices = new Set([0]);
 
+        // Animation
+        this.animationEnabled = false;
+        this.frames = [];
+        this.activeFrameIndex = 0;
+
         // Start with one empty layer
         this.addLayer('Background');
     }
@@ -152,5 +157,122 @@ export class ImageDocument {
                 }
             }
         }
+    }
+
+    // ── Frame Animation ──────────────────────────────────────────────
+
+    _snapshotLayers() {
+        return this.layers.map(l => ({
+            data: l.data.slice(),
+            opacity: l.opacity,
+            textData: l.textData ? { ...l.textData } : null,
+            offsetX: l.offsetX,
+            offsetY: l.offsetY,
+        }));
+    }
+
+    _restoreLayersFromFrame(frame) {
+        for (let i = 0; i < this.layers.length && i < frame.layerData.length; i++) {
+            const ld = frame.layerData[i];
+            const layer = this.layers[i];
+            layer.data = ld.data.slice();
+            layer.opacity = ld.opacity;
+            layer.textData = ld.textData ? { ...ld.textData } : null;
+            layer.offsetX = ld.offsetX;
+            layer.offsetY = ld.offsetY;
+            // Restore dimensions from data length
+            if (layer.type !== 'text') {
+                const expectedSize = layer.width * layer.height;
+                if (ld.data.length !== expectedSize) {
+                    // Dimensions may have changed; recalculate
+                    layer.width = ld.width || layer.width;
+                    layer.height = ld.height || layer.height;
+                }
+            }
+        }
+    }
+
+    saveCurrentFrame() {
+        if (!this.animationEnabled || this.frames.length === 0) return;
+        const frame = this.frames[this.activeFrameIndex];
+        frame.layerData = this.layers.map(l => ({
+            data: l.data.slice(),
+            opacity: l.opacity,
+            textData: l.textData ? { ...l.textData } : null,
+            offsetX: l.offsetX,
+            offsetY: l.offsetY,
+            width: l.width,
+            height: l.height,
+        }));
+    }
+
+    loadFrame(index) {
+        if (index < 0 || index >= this.frames.length) return;
+        this.activeFrameIndex = index;
+        this._restoreLayersFromFrame(this.frames[index]);
+    }
+
+    addFrame() {
+        this.saveCurrentFrame();
+        const frame = {
+            tag: '',
+            delay: 100,
+            layerData: this._snapshotLayers().map((ld, i) => ({
+                ...ld,
+                width: this.layers[i].width,
+                height: this.layers[i].height,
+            })),
+        };
+        this.frames.splice(this.activeFrameIndex + 1, 0, frame);
+        this.activeFrameIndex++;
+    }
+
+    deleteFrame(index) {
+        if (this.frames.length <= 1) return false;
+        this.frames.splice(index, 1);
+        if (this.activeFrameIndex >= this.frames.length) {
+            this.activeFrameIndex = this.frames.length - 1;
+        }
+        this.loadFrame(this.activeFrameIndex);
+        return true;
+    }
+
+    moveFrame(from, dir) {
+        const to = from + dir;
+        if (to < 0 || to >= this.frames.length) return false;
+        const [frame] = this.frames.splice(from, 1);
+        this.frames.splice(to, 0, frame);
+        this.activeFrameIndex = to;
+        return true;
+    }
+
+    enableAnimation() {
+        if (this.animationEnabled) return;
+        this.animationEnabled = true;
+        this.frames = [{
+            tag: '',
+            delay: 100,
+            layerData: this.layers.map(l => ({
+                data: l.data.slice(),
+                opacity: l.opacity,
+                textData: l.textData ? { ...l.textData } : null,
+                offsetX: l.offsetX,
+                offsetY: l.offsetY,
+                width: l.width,
+                height: l.height,
+            })),
+        }];
+        this.activeFrameIndex = 0;
+    }
+
+    disableAnimation() {
+        if (!this.animationEnabled) return;
+        // Keep frame 0's data
+        if (this.frames.length > 0) {
+            this.loadFrame(0);
+        }
+        this.animationEnabled = false;
+        this.frames = [];
+        this.activeFrameIndex = 0;
     }
 }

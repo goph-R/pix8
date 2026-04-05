@@ -26,17 +26,41 @@ export function savePix8(doc) {
         activeLayerIndex: doc.activeLayerIndex,
         fgColorIndex: doc.fgColorIndex,
         bgColorIndex: doc.bgColorIndex,
+        animationEnabled: doc.animationEnabled,
+        frames: doc.animationEnabled ? doc.frames.map(f => ({
+            tag: f.tag,
+            delay: f.delay,
+            layerData: f.layerData.map(ld => ({
+                opacity: ld.opacity,
+                textData: ld.textData,
+                offsetX: ld.offsetX,
+                offsetY: ld.offsetY,
+                width: ld.width,
+                height: ld.height,
+            })),
+        })) : [],
+        activeFrameIndex: doc.activeFrameIndex,
     };
 
     const metaJson = JSON.stringify(meta);
     const metaBytes = new TextEncoder().encode(metaJson);
 
-    // Total binary: 4 bytes meta length + meta + all layer data (variable size, Uint16 = 2 bytes/pixel)
+    // Calculate total size: 4 bytes meta length + meta + base layer data + frame pixel data
     let totalLayerBytes = 0;
     for (const layer of doc.layers) {
         totalLayerBytes += layer.width * layer.height * 2;
     }
-    const totalSize = 4 + metaBytes.length + totalLayerBytes;
+
+    let totalFrameBytes = 0;
+    if (doc.animationEnabled) {
+        for (const frame of doc.frames) {
+            for (const ld of frame.layerData) {
+                totalFrameBytes += ld.data.length * 2;
+            }
+        }
+    }
+
+    const totalSize = 4 + metaBytes.length + totalLayerBytes + totalFrameBytes;
     const buffer = new ArrayBuffer(totalSize);
     const view = new DataView(buffer);
     const bytes = new Uint8Array(buffer);
@@ -49,6 +73,17 @@ export function savePix8(doc) {
         const u8View = new Uint8Array(layer.data.buffer, layer.data.byteOffset, layer.data.byteLength);
         bytes.set(u8View, offset);
         offset += layer.width * layer.height * 2;
+    }
+
+    // Write frame pixel data
+    if (doc.animationEnabled) {
+        for (const frame of doc.frames) {
+            for (const ld of frame.layerData) {
+                const u8View = new Uint8Array(ld.data.buffer, ld.data.byteOffset, ld.data.byteLength);
+                bytes.set(u8View, offset);
+                offset += ld.data.length * 2;
+            }
+        }
     }
 
     return new Blob([buffer], { type: 'application/octet-stream' });
@@ -92,6 +127,42 @@ export function loadPix8(arrayBuffer) {
 
     doc.activeLayerIndex = meta.activeLayerIndex || 0;
     doc.selectedLayerIndices.add(doc.activeLayerIndex);
+
+    // Load animation frames
+    if (meta.animationEnabled && meta.frames && meta.frames.length > 0) {
+        doc.animationEnabled = true;
+        doc.activeFrameIndex = meta.activeFrameIndex || 0;
+        doc.frames = meta.frames.map(frameMeta => {
+            const frame = {
+                tag: frameMeta.tag || '',
+                delay: frameMeta.delay || 100,
+                layerData: frameMeta.layerData.map((ldMeta, li) => {
+                    const lw = ldMeta.width ?? meta.layers[li]?.width ?? meta.width;
+                    const lh = ldMeta.height ?? meta.layers[li]?.height ?? meta.height;
+                    const pixelCount = lw * lh;
+                    const data = new Uint16Array(pixelCount);
+                    const u8View = new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+                    u8View.set(bytes.slice(offset, offset + pixelCount * 2));
+                    offset += pixelCount * 2;
+                    return {
+                        data,
+                        opacity: ldMeta.opacity ?? 1,
+                        textData: ldMeta.textData || null,
+                        offsetX: ldMeta.offsetX ?? 0,
+                        offsetY: ldMeta.offsetY ?? 0,
+                        width: lw,
+                        height: lh,
+                    };
+                }),
+            };
+            return frame;
+        });
+        // Load the active frame into layers
+        if (doc.frames[doc.activeFrameIndex]) {
+            doc._restoreLayersFromFrame(doc.frames[doc.activeFrameIndex]);
+        }
+    }
+
     return doc;
 }
 

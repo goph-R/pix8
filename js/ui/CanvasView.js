@@ -7,7 +7,7 @@ export class CanvasView {
         this.doc = doc;
         this.bus = bus;
 
-        this.container = document.getElementById('canvas-area');
+        this.container = document.getElementById('canvas-container');
         this.workCanvas = document.getElementById('work-canvas');
         this.overlayCanvas = document.getElementById('overlay-canvas');
         this.selectionCanvas = document.getElementById('selection-canvas');

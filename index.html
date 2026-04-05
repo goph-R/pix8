@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="css/canvas-area.css">
     <link rel="stylesheet" href="css/layers-panel.css">
     <link rel="stylesheet" href="css/palette-panel.css">
+    <link rel="stylesheet" href="css/frames.css">
     <link rel="stylesheet" href="css/tabs.css">
 </head>
 <body>
@@ -19,6 +20,7 @@
             <div class="menu-item" data-menu="edit">Edit</div>
             <div class="menu-item" data-menu="view">View</div>
             <div class="menu-item" data-menu="selection">Selection</div>
+            <div class="menu-item" data-menu="animation">Animation</div>
             <div class="menu-item" data-menu="image">Image</div>
             <div class="menu-item" data-menu="layer">Layer</div>
         </div>
@@ -43,11 +45,14 @@
 
         <!-- Center Canvas Area -->
         <div id="canvas-area">
-            <div class="checkerboard" id="checkerboard"></div>
-            <canvas id="work-canvas"></canvas>
-            <canvas id="overlay-canvas"></canvas>
-            <canvas id="selection-canvas"></canvas>
-            <canvas id="grid-canvas"></canvas>
+            <div id="canvas-container">
+                <div class="checkerboard" id="checkerboard"></div>
+                <canvas id="work-canvas"></canvas>
+                <canvas id="overlay-canvas"></canvas>
+                <canvas id="selection-canvas"></canvas>
+                <canvas id="grid-canvas"></canvas>
+            </div>
+            <div id="frame-panel"></div>
         </div>
 
         <!-- Right Panel -->

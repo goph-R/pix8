@@ -10,6 +10,7 @@ import { ColorSelector } from './ui/ColorSelector.js';
 import { PalettePanel } from './ui/PalettePanel.js';
 import { LayersPanel } from './ui/LayersPanel.js';
 import { TabBar } from './ui/TabBar.js';
+import { FramePanel } from './ui/FramePanel.js';
 
 import { UndoManager } from './history/UndoManager.js';
 
@@ -190,6 +191,7 @@ class App {
         this.colorSelector = new ColorSelector(this.doc, this.bus);
         this.palettePanel = new PalettePanel(this.doc, this.bus, this.undoManager);
         this.layersPanel = new LayersPanel(this.doc, this.bus);
+        this.framePanel = new FramePanel(this.doc, this.bus);
 
         // Undo integration: wrap tool pointer events
         this._wrapUndoIntoCanvasView();
@@ -314,6 +316,13 @@ class App {
         document.getElementById('status-size').textContent = `${tab.doc.width} x ${tab.doc.height}`;
         document.getElementById('status-zoom').textContent = `${tab.zoom * 100}%`;
 
+        // Frame panel visibility
+        if (tab.doc.animationEnabled) {
+            this.framePanel.show();
+        } else {
+            this.framePanel.hide();
+        }
+
         // Refresh all UI
         this.canvasView.stopMarchingAnts();
         this.bus.emit('palette-changed');
@@ -331,6 +340,7 @@ class App {
         this.palettePanel.doc = doc;
         this.layersPanel.doc = doc;
         this.toolbar.doc = doc;
+        this.framePanel.doc = doc;
         for (const tool of this._tools) {
             tool.doc = doc;
         }
@@ -753,6 +763,9 @@ class App {
             case 'edit':
                 this._showEditMenu();
                 break;
+            case 'animation':
+                this._showAnimationMenu();
+                break;
             case 'selection':
                 this._showSelectionMenu();
                 break;
@@ -940,6 +953,28 @@ class App {
         sel.active = true;
         sel._pureShape = null;
         this.bus.emit('selection-changed');
+    }
+
+    _showAnimationMenu() {
+        const anchor = document.querySelector('[data-menu="animation"]');
+        const enabled = this.doc.animationEnabled;
+        this._showDropdown(anchor, 'animation', [
+            { label: (enabled ? '\u2713 ' : '') + 'Enable', action: () => this._toggleAnimation() },
+        ]);
+    }
+
+    _toggleAnimation() {
+        if (this.doc.animationEnabled) {
+            if (!confirm('Disable animation? Only frame 1 data will be kept.')) return;
+            this.doc.disableAnimation();
+            this.framePanel.hide();
+        } else {
+            this.doc.enableAnimation();
+            this.framePanel.show();
+        }
+        this.bus.emit('layer-changed');
+        this.bus.emit('document-changed');
+        this.bus.emit('animation-changed');
     }
 
     _copy() {

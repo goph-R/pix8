@@ -40,11 +40,16 @@ A browser-based 256-color indexed pixel art editor inspired by VGA-era graphics 
 - **Image rotation** -- Image menu: Rotate Left / Rotate Right (90-degree, affects all layers, swaps dimensions)
 - **Layer menu** -- Merge All (flatten), Merge Selected (Ctrl+click layers to multi-select), Convert to Bitmap (text layers)
 - **Multi-layer selection** -- Ctrl+click layers in the panel to select multiple, active layer always selected, used for Merge Selected
+- **Layer opacity** -- per-layer opacity (0-100%) with palette-mapped blending, slider in layers panel
+- **Frame animation** -- sprite-sheet animation with per-frame layer pixel data, opacity, and text data; frame timeline panel with thumbnails, play/stop, per-frame tag and delay
+- **Animation menu** -- enable/disable animation; frame panel with add, delete, copy, reorder, play, stop controls
+- **Desktop-style menus** -- click to open, click again to close, hover to switch between open menus; same for toolbar flyout groups
 - **Undo/Redo** -- Ctrl+Z / Ctrl+Shift+Z, 50-step history (includes layer geometry and selection changes)
 - **File I/O** -- save/load `.pix8` projects, import/export 8-bit BMP and PCX, export PNG, PAL palette format (raw 6-bit and JASC-PAL 8-bit), open truecolor images (PNG/JPG/GIF/WebP)
 - **Import options** -- import as layer, optional index 0 transparency
 - **Status bar hints** -- contextual tool hints showing available shortcuts and modifiers
-- **Dark theme** -- desktop only, minimum 1200px width
+- **Mouse wheel on number inputs** -- scroll to increment/decrement any number input
+- **Dark theme** -- minimum 600px width
 
 ## Getting Started
 
