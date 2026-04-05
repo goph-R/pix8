@@ -23,7 +23,10 @@ A browser-based 256-color indexed pixel art editor inspired by VGA-era graphics 
 - **Flood Fill** -- fill connected pixels with FG/BG color (G shortcut), respects selection boundaries
 - **Line snapping** -- hold Ctrl while drawing lines to snap to nearest 22.5-degree angle (horizontal, vertical, diagonal)
 - **Eraser line mode** -- hold Shift to erase in a straight line, Ctrl to snap angle
-- **Clipboard** -- Cut (Ctrl+X), Copy (Ctrl+C), Copy Merged (Ctrl+Shift+C), Paste (Ctrl+V), Paste in Place (Ctrl+Shift+V)
+- **Multi-document tabs** -- open multiple documents in tabs, each with independent layers, palette, undo history, and zoom/pan state
+- **Clipboard** -- Cut (Ctrl+X), Copy (Ctrl+C), Copy Merged (Ctrl+Shift+C), Paste (Ctrl+V), Paste in Place (Ctrl+Shift+V); paste creates a new layer with automatic palette color remapping between documents
+- **System clipboard paste** -- Ctrl+V reads images from system clipboard, maps to current palette with dithering options (None/Floyd-Steinberg/Ordered), pastes as new layer
+- **Truecolor image import** -- File > Open supports PNG/JPG/GIF/WebP with quantization dialog (color count + dithering mode)
 - **Brush capture** -- set brush from selection (Ctrl+B) to capture pixels as a custom brush stamp
 - **GrafX2-style palette editor** -- full palette management dialog with toolbar, vertical RGB sliders, range selection (drag to select), color preview strip
 - **Palette operations** -- Swap, X-Swap (with pixel remap), Copy, Flip, X-Flip, Neg, Gray, Spread, Merge, Sort (Hue/Lightness/Histogram), Reduce (median-cut), Zap Unused, Used highlight
@@ -35,8 +38,8 @@ A browser-based 256-color indexed pixel art editor inspired by VGA-era graphics 
 - **Layer menu** -- Merge All (flatten), Merge Selected (Ctrl+click layers to multi-select)
 - **Multi-layer selection** -- Ctrl+click layers in the panel to select multiple, active layer always selected, used for Merge Selected
 - **Undo/Redo** -- Ctrl+Z / Ctrl+Shift+Z, 50-step history (includes layer geometry and selection changes)
-- **File I/O** -- save/load `.pix8` projects, import/export 8-bit BMP and PCX, export PNG, PAL palette format (raw 6-bit and JASC-PAL 8-bit)
-- **Import options** -- import image, import as layer, optional index 0 transparency
+- **File I/O** -- save/load `.pix8` projects, import/export 8-bit BMP and PCX, export PNG, PAL palette format (raw 6-bit and JASC-PAL 8-bit), open truecolor images (PNG/JPG/GIF/WebP)
+- **Import options** -- import as layer, optional index 0 transparency
 - **Status bar hints** -- contextual tool hints showing available shortcuts and modifiers
 - **Dark theme** -- desktop only, minimum 1200px width
 

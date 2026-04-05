@@ -46,8 +46,8 @@ export function generateVGAPalette() {
     return palette;
 }
 
-export const DEFAULT_DOC_WIDTH = 64;
-export const DEFAULT_DOC_HEIGHT = 64;
+export const DEFAULT_DOC_WIDTH = 320;
+export const DEFAULT_DOC_HEIGHT = 200;
 
 export const TRANSPARENT = 256; // sentinel value — not a valid palette index
 export const ZOOM_LEVELS = [1, 2, 3, 4, 6, 8, 12, 16, 32];

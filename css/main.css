@@ -39,9 +39,10 @@ html, body {
 #app {
     display: grid;
     grid-template-columns: 48px 1fr 280px;
-    grid-template-rows: auto 1fr auto;
+    grid-template-rows: auto auto 1fr auto;
     grid-template-areas:
         "menubar menubar menubar"
+        "tabbar  tabbar  tabbar"
         "toolbar canvas   rightpanel"
         "toolbar statusbar statusbar";
     width: 100%;

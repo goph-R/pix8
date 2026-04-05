@@ -9,6 +9,7 @@ import { Toolbar } from './ui/Toolbar.js';
 import { ColorSelector } from './ui/ColorSelector.js';
 import { PalettePanel } from './ui/PalettePanel.js';
 import { LayersPanel } from './ui/LayersPanel.js';
+import { TabBar } from './ui/TabBar.js';
 
 import { UndoManager } from './history/UndoManager.js';
 
@@ -43,8 +44,12 @@ class App {
         this.canvasView = null;
         this.toolbar = null;
         this.undoManager = null;
+        this.tabBar = null;
+        this._tabs = [];
+        this._activeTabId = null;
+        this._nextTabId = 1;
 
-        this._showNewDocDialog();
+        this._init(DEFAULT_DOC_WIDTH, DEFAULT_DOC_HEIGHT);
     }
 
     _showNewDocDialog() {
@@ -124,8 +129,8 @@ class App {
         // Canvas view
         this.canvasView = new CanvasView(this.doc, this.bus);
 
-        // Tools
-        const tools = [
+        // Tools (stored for doc reference updates on tab switch)
+        this._tools = [
             new MoveTool(this.doc, this.bus, this.canvasView),
             new BrushTool(this.doc, this.bus, this.canvasView),
             new EraserTool(this.doc, this.bus, this.canvasView),
@@ -142,10 +147,10 @@ class App {
             new MirrorTool(this.doc, this.bus, this.canvasView),
         ];
 
-        this._freeTransformTool = tools.find(t => t.name === 'Free Transform');
+        this._freeTransformTool = this._tools.find(t => t.name === 'Free Transform');
 
         // Toolbar
-        this.toolbar = new Toolbar(tools, this.bus);
+        this.toolbar = new Toolbar(this._tools, this.bus);
 
         // Wire active tool to canvas view (must be before setActiveTool)
         this.bus.on('tool-changed', (tool) => {
@@ -216,11 +221,212 @@ class App {
         });
 
         // Keyboard shortcuts
-        this._setupKeyboardShortcuts(tools);
+        this._setupKeyboardShortcuts(this._tools);
 
         // Menu bar
         this._setupMenuBar();
+
+        // Tab bar
+        this.tabBar = new TabBar(this.bus);
+        this.bus.on('tab-switch', (id) => this._switchTab(id));
+        this.bus.on('tab-close', (id) => this._closeTab(id));
+
+        // Create first tab
+        this._createTab('Untitled');
     }
+
+    // ── Tab Management ──────────────────────────────────────────────
+
+    _createTab(name) {
+        const tab = {
+            id: this._nextTabId++,
+            name,
+            doc: this.doc,
+            undoStack: this.undoManager.undoStack,
+            redoStack: this.undoManager.redoStack,
+            zoomIndex: this.canvasView.zoomIndex,
+            zoom: this.canvasView.zoom,
+            panX: this.canvasView.panX,
+            panY: this.canvasView.panY,
+        };
+        this._tabs.push(tab);
+        this._activeTabId = tab.id;
+        this._renderTabs();
+        return tab;
+    }
+
+    _saveTabState() {
+        const tab = this._tabs.find(t => t.id === this._activeTabId);
+        if (!tab) return;
+        tab.doc = this.doc;
+        tab.undoStack = this.undoManager.undoStack;
+        tab.redoStack = this.undoManager.redoStack;
+        tab.zoomIndex = this.canvasView.zoomIndex;
+        tab.zoom = this.canvasView.zoom;
+        tab.panX = this.canvasView.panX;
+        tab.panY = this.canvasView.panY;
+    }
+
+    _loadTabState(tab) {
+        // Replace document instance on all components
+        this.doc = tab.doc;
+        this._setDocOnComponents(tab.doc);
+
+        this.undoManager.undoStack = tab.undoStack;
+        this.undoManager.redoStack = tab.redoStack;
+
+        // Restore view state
+        this.canvasView.zoomIndex = tab.zoomIndex;
+        this.canvasView.zoom = tab.zoom;
+        this.canvasView.panX = tab.panX;
+        this.canvasView.panY = tab.panY;
+
+        // Recreate offscreen canvas and renderer
+        this.canvasView.offscreen.width = tab.doc.width;
+        this.canvasView.offscreen.height = tab.doc.height;
+        this.canvasView.renderer = new (this.canvasView.renderer.constructor)(this.doc);
+
+        document.getElementById('status-size').textContent = `${tab.doc.width} x ${tab.doc.height}`;
+        document.getElementById('status-zoom').textContent = `${tab.zoom * 100}%`;
+
+        // Refresh all UI
+        this.canvasView.stopMarchingAnts();
+        this.bus.emit('palette-changed');
+        this.bus.emit('fg-color-changed');
+        this.bus.emit('bg-color-changed');
+        this.bus.emit('layer-changed');
+        this.bus.emit('document-changed');
+        this.bus.emit('selection-changed');
+    }
+
+    _setDocOnComponents(doc) {
+        this.canvasView.doc = doc;
+        this.undoManager.doc = doc;
+        this.colorSelector.doc = doc;
+        this.palettePanel.doc = doc;
+        this.layersPanel.doc = doc;
+        for (const tool of this._tools) {
+            tool.doc = doc;
+        }
+    }
+
+    _switchTab(id) {
+        if (id === this._activeTabId) return;
+        this._saveTabState();
+        this._activeTabId = id;
+        const tab = this._tabs.find(t => t.id === id);
+        if (tab) this._loadTabState(tab);
+        this._renderTabs();
+    }
+
+    _closeTab(id) {
+        if (this._tabs.length <= 1) return; // can't close last tab
+        const idx = this._tabs.findIndex(t => t.id === id);
+        if (idx < 0) return;
+        this._tabs.splice(idx, 1);
+        if (id === this._activeTabId) {
+            const newIdx = Math.min(idx, this._tabs.length - 1);
+            this._activeTabId = this._tabs[newIdx].id;
+            this._loadTabState(this._tabs[newIdx]);
+        }
+        this._renderTabs();
+    }
+
+    _getActiveTab() {
+        return this._tabs.find(t => t.id === this._activeTabId);
+    }
+
+    _renderTabs() {
+        this.tabBar.render(this._tabs, this._activeTabId);
+    }
+
+    _newDocument() {
+        const overlay = document.createElement('div');
+        overlay.style.cssText = `
+            position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+            display: flex; align-items: center; justify-content: center; z-index: 1000;
+        `;
+        const dialog = document.createElement('div');
+        dialog.style.cssText = `
+            background: var(--bg-panel, #2d2d30); border: 1px solid var(--border, #3c3c3c);
+            border-radius: 6px; padding: 24px; min-width: 300px; color: var(--text, #ccc);
+        `;
+        dialog.innerHTML = `
+            <h3 style="margin: 0 0 16px 0; font-size: 16px; color: #fff;">New Document</h3>
+            <div style="margin-bottom: 12px;">
+                <label style="display: block; font-size: 12px; margin-bottom: 4px; color: #aaa;">Width (px)</label>
+                <input id="new-tab-w" type="number" value="64" min="1" max="1024"
+                    style="width: 100%; padding: 6px; background: #3c3c3c; border: 1px solid #555;
+                    border-radius: 3px; color: #ccc; font-size: 13px;">
+            </div>
+            <div style="margin-bottom: 12px;">
+                <label style="display: block; font-size: 12px; margin-bottom: 4px; color: #aaa;">Height (px)</label>
+                <input id="new-tab-h" type="number" value="64" min="1" max="1024"
+                    style="width: 100%; padding: 6px; background: #3c3c3c; border: 1px solid #555;
+                    border-radius: 3px; color: #ccc; font-size: 13px;">
+            </div>
+            <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                <button class="preset-btn" data-w="32" data-h="32" style="flex:1; padding: 6px; background: #3c3c3c; border: 1px solid #555; border-radius: 3px; color: #ccc; cursor: pointer;">32x32</button>
+                <button class="preset-btn" data-w="64" data-h="64" style="flex:1; padding: 6px; background: #3c3c3c; border: 1px solid #555; border-radius: 3px; color: #ccc; cursor: pointer;">64x64</button>
+                <button class="preset-btn" data-w="128" data-h="128" style="flex:1; padding: 6px; background: #3c3c3c; border: 1px solid #555; border-radius: 3px; color: #ccc; cursor: pointer;">128x128</button>
+                <button class="preset-btn" data-w="256" data-h="256" style="flex:1; padding: 6px; background: #3c3c3c; border: 1px solid #555; border-radius: 3px; color: #ccc; cursor: pointer;">256x256</button>
+            </div>
+            <div style="display:flex;gap:8px;">
+                <button id="new-tab-cancel" style="flex:1; padding: 8px; background: #3c3c3c;
+                    border: 1px solid #555; border-radius: 3px; color: #ccc; cursor: pointer; font-size: 13px;">Cancel</button>
+                <button id="new-tab-ok" style="flex:1; padding: 8px; background: #007acc;
+                    border: none; border-radius: 3px; color: #fff; cursor: pointer; font-size: 13px;">Create</button>
+            </div>
+        `;
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+
+        const wInput = dialog.querySelector('#new-tab-w');
+        const hInput = dialog.querySelector('#new-tab-h');
+
+        for (const btn of dialog.querySelectorAll('.preset-btn')) {
+            btn.addEventListener('click', () => {
+                wInput.value = btn.dataset.w;
+                hInput.value = btn.dataset.h;
+            });
+        }
+
+        dialog.querySelector('#new-tab-cancel').addEventListener('click', () => overlay.remove());
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+
+        dialog.querySelector('#new-tab-ok').addEventListener('click', () => {
+            const w = Math.max(1, Math.min(1024, parseInt(wInput.value) || 64));
+            const h = Math.max(1, Math.min(1024, parseInt(hInput.value) || 64));
+            overlay.remove();
+            this._saveTabState();
+            this.doc = new ImageDocument(w, h);
+            this._setDocOnComponents(this.doc);
+            this.undoManager.undoStack = [];
+            this.undoManager.redoStack = [];
+            this._clipboard = null;
+            this.canvasView.offscreen.width = w;
+            this.canvasView.offscreen.height = h;
+            this.canvasView.renderer = new (this.canvasView.renderer.constructor)(this.doc);
+            this.canvasView._centerDocument();
+            this._createTab('Untitled');
+            this.bus.emit('palette-changed');
+            this.bus.emit('fg-color-changed');
+            this.bus.emit('bg-color-changed');
+            this.bus.emit('layer-changed');
+            this.bus.emit('document-changed');
+            document.getElementById('status-size').textContent = `${w} x ${h}`;
+        });
+
+        dialog.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') dialog.querySelector('#new-tab-ok').click();
+            if (e.key === 'Escape') overlay.remove();
+        });
+
+        wInput.focus();
+        wInput.select();
+    }
+
+    // ── Tool Hints ──────────────────────────────────────────────────
 
     _getToolHint(name) {
         const hints = {
@@ -556,8 +762,9 @@ class App {
     _showFileMenu() {
         const anchor = document.querySelector('[data-menu="file"]');
         this._showDropdown(anchor, [
-            { label: 'New...', shortcut: '', action: () => { location.reload(); } },
+            { label: 'New...', shortcut: '', action: () => this._newDocument() },
             { label: 'Open...', shortcut: 'Ctrl+O', action: () => this._openFile() },
+            { label: 'Close Tab', disabled: this._tabs.length <= 1, action: () => this._closeTab(this._activeTabId) },
             '-',
             { label: 'Save Project (.pix8)', shortcut: 'Ctrl+S', action: () => this._saveProject() },
             '-',
@@ -610,14 +817,20 @@ class App {
         const sel = this.doc.selection;
         if (!sel.active) return;
         const copied = sel.copyPixels(this.doc.getActiveLayer());
-        if (copied) this._clipboard = copied;
+        if (copied) {
+            copied.sourcePalette = this.doc.palette.export();
+            this._clipboard = copied;
+        }
     }
 
     _copyMerged() {
         const sel = this.doc.selection;
         if (!sel.active) return;
         const copied = sel.copyPixelsMerged(this.doc.layers);
-        if (copied) this._clipboard = copied;
+        if (copied) {
+            copied.sourcePalette = this.doc.palette.export();
+            this._clipboard = copied;
+        }
     }
 
     _cut() {
@@ -625,7 +838,10 @@ class App {
         if (!sel.active) return;
         this.undoManager.beginOperation();
         const copied = sel.copyPixels(this.doc.getActiveLayer());
-        if (copied) this._clipboard = copied;
+        if (copied) {
+            copied.sourcePalette = this.doc.palette.export();
+            this._clipboard = copied;
+        }
         if (!sel.hasFloating()) {
             sel.liftPixels(this.doc.getActiveLayer());
         }
@@ -635,30 +851,44 @@ class App {
         this.bus.emit('layer-changed');
     }
 
-    _pasteAsFloating(originX, originY) {
+    _pasteAsLayer(originX, originY) {
         if (!this._clipboard) return;
-        const sel = this.doc.selection;
-        const layer = this.doc.getActiveLayer();
+        const cb = this._clipboard;
 
-        this.undoManager.beginOperation();
-        if (sel.hasFloating()) {
-            sel.commitFloating(layer);
+        // Remap palette indices if pasting from a different palette
+        const data = new Uint16Array(cb.data);
+        if (cb.sourcePalette) {
+            const dstPalette = this.doc.palette.export();
+            const remap = new Uint16Array(256);
+            for (let i = 0; i < 256; i++) {
+                const [sr, sg, sb] = cb.sourcePalette[i];
+                let bestDist = Infinity, bestJ = 0;
+                for (let j = 0; j < 256; j++) {
+                    const [dr, dg, db] = dstPalette[j];
+                    const dist = (sr - dr) ** 2 + (sg - dg) ** 2 + (sb - db) ** 2;
+                    if (dist < bestDist) { bestDist = dist; bestJ = j; }
+                    if (dist === 0) break;
+                }
+                remap[i] = bestJ;
+            }
+            for (let i = 0; i < data.length; i++) {
+                if (data[i] !== TRANSPARENT) {
+                    data[i] = remap[data[i]];
+                }
+            }
         }
 
-        const cb = this._clipboard;
-        sel.mask.fill(0);
-        sel.active = true;
-        sel.floating = {
-            data: new Uint16Array(cb.data),
-            mask: new Uint8Array(cb.mask),
-            width: cb.width,
-            height: cb.height,
-            originX, originY
-        };
-
-        this.undoManager.endOperation();
-        this.bus.emit('selection-changed');
+        const newLayer = new Layer('Pasted', cb.width, cb.height);
+        newLayer.data.set(data);
+        newLayer.offsetX = originX;
+        newLayer.offsetY = originY;
+        const insertIdx = this.doc.activeLayerIndex + 1;
+        this.doc.layers.splice(insertIdx, 0, newLayer);
+        this.doc.activeLayerIndex = insertIdx;
+        this.doc.selectedLayerIndices.clear();
+        this.doc.selectedLayerIndices.add(insertIdx);
         this.bus.emit('layer-changed');
+        this.bus.emit('document-changed');
     }
 
     _paste() {
@@ -666,12 +896,12 @@ class App {
         const cb = this._clipboard;
         const ox = Math.round((this.doc.width - cb.width) / 2);
         const oy = Math.round((this.doc.height - cb.height) / 2);
-        this._pasteAsFloating(ox, oy);
+        this._pasteAsLayer(ox, oy);
     }
 
     _pasteInPlace() {
         if (!this._clipboard) return;
-        this._pasteAsFloating(this._clipboard.originX, this._clipboard.originY);
+        this._pasteAsLayer(this._clipboard.originX, this._clipboard.originY);
     }
 
     async _pasteFromClipboard() {
@@ -1129,8 +1359,10 @@ class App {
     }
 
     _saveProject() {
+        const tab = this._getActiveTab();
+        const filename = (tab ? tab.name : 'untitled') + '.pix8';
         const blob = savePix8(this.doc);
-        downloadBlob(blob, 'untitled.pix8');
+        downloadBlob(blob, filename);
     }
 
     _openFile() {
@@ -1162,7 +1394,7 @@ class App {
                         alert('Unsupported file format');
                         return;
                     }
-                    this._replaceDocument(newDoc);
+                    this._openInNewTab(file.name, newDoc);
                 } catch (err) {
                     alert('Error loading file: ' + err.message);
                 }
@@ -1170,6 +1402,27 @@ class App {
             reader.readAsArrayBuffer(file);
         });
         input.click();
+    }
+
+    _openInNewTab(filename, newDoc) {
+        this._saveTabState();
+        this.doc = newDoc;
+        this._setDocOnComponents(newDoc);
+        this.undoManager.undoStack = [];
+        this.undoManager.redoStack = [];
+        this._clipboard = null;
+        this.canvasView.offscreen.width = newDoc.width;
+        this.canvasView.offscreen.height = newDoc.height;
+        this.canvasView.renderer = new (this.canvasView.renderer.constructor)(this.doc);
+        this.canvasView._centerDocument();
+        const name = filename.replace(/\.[^.]+$/, '');
+        this._createTab(name);
+        this.bus.emit('palette-changed');
+        this.bus.emit('fg-color-changed');
+        this.bus.emit('bg-color-changed');
+        this.bus.emit('layer-changed');
+        this.bus.emit('document-changed');
+        document.getElementById('status-size').textContent = `${newDoc.width} x ${newDoc.height}`;
     }
 
     _openTruecolorFile(file) {
@@ -1184,7 +1437,7 @@ class App {
             const imageData = ctx.getImageData(0, 0, img.width, img.height);
             URL.revokeObjectURL(url);
             this._showQuantizeDialog(imageData.data, img.width, img.height, (doc) => {
-                this._replaceDocument(doc);
+                this._openInNewTab(file.name, doc);
             });
         };
         img.onerror = () => {
