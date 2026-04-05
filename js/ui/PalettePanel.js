@@ -1,9 +1,10 @@
 import { PaletteEditDialog } from './PaletteEditDialog.js';
 
 export class PalettePanel {
-    constructor(doc, bus) {
+    constructor(doc, bus, undoManager) {
         this.doc = doc;
         this.bus = bus;
+        this.undoManager = undoManager;
 
         this.grid = document.getElementById('palette-grid');
         this._swatches = [];
@@ -70,7 +71,7 @@ export class PalettePanel {
             this._dialog = null;
         }
 
-        const dlg = new PaletteEditDialog(this.doc, this.bus);
+        const dlg = new PaletteEditDialog(this.doc, this.bus, this.undoManager);
         dlg.onClose = () => { this._dialog = null; };
         dlg.open();
         this._dialog = dlg;

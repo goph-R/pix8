@@ -1,7 +1,10 @@
+import { exportPAL, importPAL, importBMP, importPCX, downloadBlob } from '../util/io.js';
+
 export class PaletteEditDialog {
-    constructor(doc, bus) {
+    constructor(doc, bus, undoManager) {
         this.doc = doc;
         this.bus = bus;
+        this.undoManager = undoManager;
         this.onClose = null;
 
         this._overlay = null;
@@ -16,6 +19,9 @@ export class PaletteEditDialog {
         this._originalLayers = null;
         this._statusEl = null;
         this._usedHighlight = false;
+        this._paletteHistory = [];
+        this._undoBtn = null;
+        this._sliderDirty = false;
 
         this._rSlider = null; this._gSlider = null; this._bSlider = null;
         this._rNum = null; this._gNum = null; this._bNum = null;
@@ -54,6 +60,21 @@ export class PaletteEditDialog {
 
         // Toolbar (full width)
         dialog.appendChild(this._buildToolbar());
+
+        // 6-bit checkbox
+        const checkRow = document.createElement('div');
+        checkRow.className = 'palette-dialog-6bit';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.id = 'palette-6bit-check';
+        checkbox.checked = this._6bit;
+        checkbox.addEventListener('change', () => this._on6bitToggle(checkbox));
+        const checkLabel = document.createElement('label');
+        checkLabel.htmlFor = 'palette-6bit-check';
+        checkLabel.textContent = '6 bit/channel';
+        checkRow.appendChild(checkbox);
+        checkRow.appendChild(checkLabel);
+        dialog.appendChild(checkRow);
 
         // Status message (for two-step ops)
         const status = document.createElement('div');
@@ -105,26 +126,34 @@ export class PaletteEditDialog {
         gridRow.appendChild(this._buildSliders());
         dialog.appendChild(gridRow);
 
-        // Footer: 6-bit checkbox on left, OK/Cancel on right
+        // Footer
         const footer = document.createElement('div');
         footer.className = 'palette-dialog-footer';
 
-        const checkRow = document.createElement('div');
-        checkRow.className = 'palette-dialog-6bit';
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.id = 'palette-6bit-check';
-        checkbox.checked = this._6bit;
-        checkbox.addEventListener('change', () => this._on6bitToggle(checkbox));
-        const checkLabel = document.createElement('label');
-        checkLabel.htmlFor = 'palette-6bit-check';
-        checkLabel.textContent = '6 bit/channel';
-        checkRow.appendChild(checkbox);
-        checkRow.appendChild(checkLabel);
-        footer.appendChild(checkRow);
+        const leftBtns = document.createElement('div');
+        leftBtns.className = 'palette-dialog-footer-btns';
 
-        const btnGroup = document.createElement('div');
-        btnGroup.className = 'palette-dialog-footer-btns';
+        const undoBtn = document.createElement('button');
+        undoBtn.textContent = 'Undo';
+        undoBtn.disabled = true;
+        undoBtn.addEventListener('click', () => this._undoPalette());
+        this._undoBtn = undoBtn;
+        leftBtns.appendChild(undoBtn);
+
+        const loadBtn = document.createElement('button');
+        loadBtn.textContent = 'Load';
+        loadBtn.addEventListener('click', () => this._loadPalette());
+        leftBtns.appendChild(loadBtn);
+
+        const saveBtn = document.createElement('button');
+        saveBtn.textContent = 'Save';
+        saveBtn.addEventListener('click', () => this._savePalette());
+        leftBtns.appendChild(saveBtn);
+
+        footer.appendChild(leftBtns);
+
+        const rightBtns = document.createElement('div');
+        rightBtns.className = 'palette-dialog-footer-btns';
         const cancelBtn = document.createElement('button');
         cancelBtn.textContent = 'Cancel';
         cancelBtn.addEventListener('click', () => this._cancel());
@@ -132,9 +161,9 @@ export class PaletteEditDialog {
         okBtn.textContent = 'OK';
         okBtn.className = 'primary';
         okBtn.addEventListener('click', () => this._ok());
-        btnGroup.appendChild(cancelBtn);
-        btnGroup.appendChild(okBtn);
-        footer.appendChild(btnGroup);
+        rightBtns.appendChild(cancelBtn);
+        rightBtns.appendChild(okBtn);
+        footer.appendChild(rightBtns);
         dialog.appendChild(footer);
 
         overlay.appendChild(dialog);
@@ -300,6 +329,10 @@ export class PaletteEditDialog {
     }
 
     _applySliderColor(rv, gv, bv) {
+        if (!this._sliderDirty) {
+            this._pushPaletteHistory();
+            this._sliderDirty = true;
+        }
         const r = this._6bit ? rv * 4 : rv;
         const g = this._6bit ? gv * 4 : gv;
         const b = this._6bit ? bv * 4 : bv;
@@ -331,6 +364,7 @@ export class PaletteEditDialog {
         }
 
         this._dragging = true;
+        this._sliderDirty = false;
         this._rangeStart = idx;
         this._rangeEnd = idx;
         this._grid.setPointerCapture(e.pointerId);
@@ -380,9 +414,8 @@ export class PaletteEditDialog {
     _updateRangeButtons() {
         const [lo, hi] = this._sortedRange();
         const hasRange = hi > lo;
-        for (const b of [this._swapBtn, this._xswapBtn, this._copyBtn,
-            this._flipBtn, this._xflipBtn, this._negBtn, this._grayBtn,
-            this._spreadBtn, this._mergeBtn]) {
+        // These need 2+ colors
+        for (const b of [this._flipBtn, this._xflipBtn, this._spreadBtn, this._mergeBtn]) {
             if (b) b.disabled = !hasRange;
         }
         if (this._sortSel) this._sortSel.disabled = !hasRange;
@@ -442,6 +475,7 @@ export class PaletteEditDialog {
                 checkbox.checked = false;
                 return;
             }
+            this._pushPaletteHistory();
             for (let i = 0; i < 256; i++) {
                 const [r, g, b] = this.doc.palette.getColor(i);
                 this.doc.palette.setColor(i,
@@ -488,6 +522,7 @@ export class PaletteEditDialog {
     _actionFlip() {
         const [lo, hi] = this._sortedRange();
         if (lo === hi) return;
+        this._pushPaletteHistory();
         const pal = this.doc.palette;
         for (let i = 0; i < Math.floor((hi - lo + 1) / 2); i++) {
             const a = [...pal.getColor(lo + i)];
@@ -502,6 +537,7 @@ export class PaletteEditDialog {
     _actionXFlip() {
         const [lo, hi] = this._sortedRange();
         if (lo === hi) return;
+        this._pushPaletteHistory();
         const mapping = new Array(256);
         for (let i = 0; i < 256; i++) mapping[i] = i;
         for (let i = 0; i <= hi - lo; i++) {
@@ -513,6 +549,7 @@ export class PaletteEditDialog {
     }
 
     _actionNeg() {
+        this._pushPaletteHistory();
         const [lo, hi] = this._sortedRange();
         const pal = this.doc.palette;
         for (let i = lo; i <= hi; i++) {
@@ -524,6 +561,7 @@ export class PaletteEditDialog {
     }
 
     _actionGray() {
+        this._pushPaletteHistory();
         const [lo, hi] = this._sortedRange();
         const pal = this.doc.palette;
         for (let i = lo; i <= hi; i++) {
@@ -539,6 +577,7 @@ export class PaletteEditDialog {
     _actionSpread() {
         const [lo, hi] = this._sortedRange();
         if (hi - lo < 2) return;
+        this._pushPaletteHistory();
         const pal = this.doc.palette;
         const [r0, g0, b0] = pal.getColor(lo);
         const [r1, g1, b1] = pal.getColor(hi);
@@ -557,6 +596,7 @@ export class PaletteEditDialog {
     _actionMerge() {
         const [lo, hi] = this._sortedRange();
         if (lo === hi) return;
+        this._pushPaletteHistory();
         const pal = this.doc.palette;
         const [r, g, b] = pal.getColor(lo);
         for (let i = lo + 1; i <= hi; i++) {
@@ -614,6 +654,7 @@ export class PaletteEditDialog {
             }
         }
 
+        this._pushPaletteHistory();
         const pal = this.doc.palette;
         const len = op.rangeLen;
 
@@ -669,6 +710,7 @@ export class PaletteEditDialog {
         const used = this.doc.getUsedColorIndices();
         const usedCount = used.size;
         if (!confirm(`Reduce the colors to ${usedCount}?`)) return;
+        this._pushPaletteHistory();
 
         const usedArr = [...used].sort((a, b) => a - b);
         const mapping = new Array(256).fill(0);
@@ -700,6 +742,7 @@ export class PaletteEditDialog {
     _actionSort(mode) {
         const [lo, hi] = this._sortedRange();
         if (lo === hi) return;
+        this._pushPaletteHistory();
         const pal = this.doc.palette;
 
         const entries = [];
@@ -749,6 +792,7 @@ export class PaletteEditDialog {
 
     _actionReduce(n) {
         if (n < 1 || n > 256) return;
+        this._pushPaletteHistory();
         const pal = this.doc.palette;
         const hist = this.doc.getColorHistogram();
         const used = this.doc.getUsedColorIndices();
@@ -853,9 +897,99 @@ export class PaletteEditDialog {
         });
     }
 
+    // ── Palette History ────────────────────────────────────────────────
+
+    _pushPaletteHistory() {
+        this._paletteHistory.push(this.doc.palette.export());
+        if (this._undoBtn) this._undoBtn.disabled = false;
+    }
+
+    _undoPalette() {
+        if (this._paletteHistory.length === 0) return;
+        const prev = this._paletteHistory.pop();
+        this.doc.palette.import(prev);
+        this.updateSwatches();
+        this.bus.emit('palette-changed');
+        if (this._undoBtn) this._undoBtn.disabled = this._paletteHistory.length === 0;
+    }
+
+    // ── Load / Save Palette ──────────────────────────────────────────
+
+    _loadPalette() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.pal,.bmp,.pcx';
+        input.addEventListener('change', () => {
+            if (!input.files[0]) return;
+            const file = input.files[0];
+            const reader = new FileReader();
+            reader.onload = () => {
+                const bytes = new Uint8Array(reader.result);
+                let colors = null;
+                const ext = file.name.split('.').pop().toLowerCase();
+                if (ext === 'pal') {
+                    colors = importPAL(bytes);
+                } else if (ext === 'bmp') {
+                    try {
+                        const doc = importBMP(reader.result);
+                        colors = doc.palette.export();
+                    } catch (e) { /* ignore */ }
+                } else if (ext === 'pcx') {
+                    try {
+                        const doc = importPCX(reader.result);
+                        colors = doc.palette.export();
+                    } catch (e) { /* ignore */ }
+                }
+                if (colors) {
+                    this._pushPaletteHistory();
+                    this.doc.palette.import(colors);
+                    this.updateSwatches();
+                    this.bus.emit('palette-changed');
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        });
+        input.click();
+    }
+
+    _savePalette() {
+        const blob = exportPAL(this.doc.palette, this._6bit);
+        downloadBlob(blob, 'palette.pal');
+    }
+
     // ── OK / Cancel ───────────────────────────────────────────────────
 
     _ok() {
+        // Push palette change to document undo history
+        const afterPalette = this.doc.palette.export();
+        const afterLayers = this.doc.layers.map(l => l.clone());
+        // Check if anything actually changed
+        let changed = false;
+        for (let i = 0; i < 256; i++) {
+            const [r1, g1, b1] = this._originalPalette[i];
+            const [r2, g2, b2] = afterPalette[i];
+            if (r1 !== r2 || g1 !== g2 || b1 !== b2) { changed = true; break; }
+        }
+        if (!changed && this._originalLayers.length === this.doc.layers.length) {
+            for (let i = 0; i < this.doc.layers.length && !changed; i++) {
+                const a = this._originalLayers[i].data;
+                const b = this.doc.layers[i].data;
+                if (a.length !== b.length) { changed = true; break; }
+                for (let j = 0; j < a.length; j++) {
+                    if (a[j] !== b[j]) { changed = true; break; }
+                }
+            }
+        }
+        if (changed && this.undoManager) {
+            this.undoManager.undoStack.push({
+                type: 'palette',
+                beforePalette: this._originalPalette,
+                afterPalette: afterPalette,
+                beforeLayers: this._originalLayers,
+                afterLayers: afterLayers,
+            });
+            this.undoManager.redoStack = [];
+        }
         this._destroy();
     }
 

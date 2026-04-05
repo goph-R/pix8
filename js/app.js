@@ -179,7 +179,7 @@ class App {
 
         // UI panels
         this.colorSelector = new ColorSelector(this.doc, this.bus);
-        this.palettePanel = new PalettePanel(this.doc, this.bus);
+        this.palettePanel = new PalettePanel(this.doc, this.bus, this.undoManager);
         this.layersPanel = new LayersPanel(this.doc, this.bus);
 
         // Undo integration: wrap tool pointer events
@@ -557,7 +557,6 @@ class App {
             '-',
             { label: 'Import Image...', action: () => this._importFile() },
             { label: 'Import as Layer...', action: () => this._importAsLayer() },
-            { label: 'Import Palette...', action: () => this._importPalette() },
             '-',
             { label: 'Export BMP', action: () => this._exportBMP() },
             { label: 'Export PCX', action: () => this._exportPCX() },

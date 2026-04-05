@@ -307,6 +307,9 @@
     gap: 6px;
     font-size: 13px;
     color: var(--text-dim, #888);
+    margin-bottom: 4px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--border, #3c3c3c);
 }
 
 .palette-dialog-6bit input[type="checkbox"] {
@@ -315,7 +318,14 @@
 
 .palette-dialog-footer-btns {
     display: flex;
-    gap: 8px;
+    align-items: center;
+    gap: 6px;
+}
+
+.ped-footer-sep {
+    width: 1px;
+    height: 20px;
+    background: var(--border, #3c3c3c);
 }
 
 .palette-dialog-footer button {

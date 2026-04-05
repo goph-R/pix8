@@ -115,6 +115,16 @@ export class UndoManager {
         const entry = this.undoStack.pop();
         if (!entry) return;
 
+        if (entry.type === 'palette') {
+            this.doc.palette.import(entry.beforePalette);
+            this.doc.layers = entry.beforeLayers;
+            this.redoStack.push(entry);
+            this.bus.emit('palette-changed');
+            this.bus.emit('layer-changed');
+            this.bus.emit('document-changed');
+            return;
+        }
+
         if (entry.type === 'resize') {
             this._restoreResize(entry, 'before');
             this.redoStack.push(entry);
@@ -138,6 +148,16 @@ export class UndoManager {
     redo() {
         const entry = this.redoStack.pop();
         if (!entry) return;
+
+        if (entry.type === 'palette') {
+            this.doc.palette.import(entry.afterPalette);
+            this.doc.layers = entry.afterLayers;
+            this.undoStack.push(entry);
+            this.bus.emit('palette-changed');
+            this.bus.emit('layer-changed');
+            this.bus.emit('document-changed');
+            return;
+        }
 
         if (entry.type === 'resize') {
             this._restoreResize(entry, 'after');

@@ -359,6 +359,44 @@ export function exportPNG(doc, renderer) {
     });
 }
 
+// ─── PAL (JASC-PAL) Format ──────────────────────────────────────────────
+
+export function exportPAL(palette, is6bit) {
+    let text = 'JASC-PAL\r\n0100\r\n256\r\n';
+    for (let i = 0; i < 256; i++) {
+        let [r, g, b] = palette.getColor(i);
+        if (is6bit) {
+            r = Math.round(r / 4);
+            g = Math.round(g / 4);
+            b = Math.round(b / 4);
+        }
+        text += `${r} ${g} ${b}\r\n`;
+    }
+    return new Blob([text], { type: 'text/plain' });
+}
+
+export function importPAL(bytes) {
+    const text = new TextDecoder().decode(bytes);
+    const lines = text.split(/\r?\n/).filter(l => l.trim());
+    if (lines[0] !== 'JASC-PAL') return null;
+    const count = parseInt(lines[2]) || 256;
+    const colors = [];
+    const is6bit = lines.slice(3, 3 + count).every(l => {
+        const parts = l.trim().split(/\s+/).map(Number);
+        return parts.every(v => v <= 63);
+    });
+    for (let i = 0; i < count && i + 3 < lines.length; i++) {
+        const parts = lines[i + 3].trim().split(/\s+/).map(Number);
+        if (parts.length >= 3) {
+            let [r, g, b] = parts;
+            if (is6bit) { r *= 4; g *= 4; b *= 4; }
+            colors.push([r, g, b]);
+        }
+    }
+    while (colors.length < 256) colors.push([0, 0, 0]);
+    return colors;
+}
+
 // ─── File download helper ───────────────────────────────────────────────
 
 export function downloadBlob(blob, filename) {
