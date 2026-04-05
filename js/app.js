@@ -34,6 +34,8 @@ import {
     exportPNG, downloadBlob
 } from './util/io.js';
 
+import { quantizeImage, mapToPalette } from './util/quantize.js';
+
 class App {
     constructor() {
         this.bus = new EventBus();
@@ -402,7 +404,11 @@ class App {
             // Ctrl+V = paste
             if (e.ctrlKey && !e.shiftKey && e.key === 'v') {
                 e.preventDefault();
-                this._paste();
+                if (this._clipboard) {
+                    this._paste();
+                } else {
+                    this._pasteFromClipboard();
+                }
                 return;
             }
 
@@ -555,7 +561,6 @@ class App {
             '-',
             { label: 'Save Project (.pix8)', shortcut: 'Ctrl+S', action: () => this._saveProject() },
             '-',
-            { label: 'Import Image...', action: () => this._importFile() },
             { label: 'Import as Layer...', action: () => this._importAsLayer() },
             '-',
             { label: 'Export BMP', action: () => this._exportBMP() },
@@ -573,7 +578,7 @@ class App {
             { label: 'Cut', shortcut: 'Ctrl+X', action: () => this._cut() },
             { label: 'Copy', shortcut: 'Ctrl+C', action: () => this._copy() },
             { label: 'Copy Merged', shortcut: 'Ctrl+Shift+C', action: () => this._copyMerged() },
-            { label: 'Paste', shortcut: 'Ctrl+V', action: () => this._paste() },
+            { label: 'Paste', shortcut: 'Ctrl+V', action: () => this._clipboard ? this._paste() : this._pasteFromClipboard() },
             { label: 'Paste in Place', shortcut: 'Ctrl+Shift+V', action: () => this._pasteInPlace() },
             '-',
             { label: 'Select All', shortcut: 'Ctrl+A', action: () => {
@@ -667,6 +672,43 @@ class App {
     _pasteInPlace() {
         if (!this._clipboard) return;
         this._pasteAsFloating(this._clipboard.originX, this._clipboard.originY);
+    }
+
+    async _pasteFromClipboard() {
+        try {
+            const items = await navigator.clipboard.read();
+            for (const item of items) {
+                const imageType = item.types.find(t => t.startsWith('image/'));
+                if (!imageType) continue;
+                const blob = await item.getType(imageType);
+                const bitmap = await createImageBitmap(blob);
+                const canvas = document.createElement('canvas');
+                canvas.width = bitmap.width;
+                canvas.height = bitmap.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(bitmap, 0, 0);
+                const imageData = ctx.getImageData(0, 0, bitmap.width, bitmap.height);
+                bitmap.close();
+
+                this._showPasteDitherDialog(imageData.data, canvas.width, canvas.height, (indices, w, h) => {
+                    // Create a new layer with the pasted data
+                    const newLayer = new Layer('Pasted', w, h);
+                    newLayer.data.set(indices);
+                    newLayer.offsetX = Math.round((this.doc.width - w) / 2);
+                    newLayer.offsetY = Math.round((this.doc.height - h) / 2);
+                    const insertIdx = this.doc.activeLayerIndex + 1;
+                    this.doc.layers.splice(insertIdx, 0, newLayer);
+                    this.doc.activeLayerIndex = insertIdx;
+                    this.doc.selectedLayerIndices.clear();
+                    this.doc.selectedLayerIndices.add(insertIdx);
+                    this.bus.emit('layer-changed');
+                    this.bus.emit('document-changed');
+                });
+                return;
+            }
+        } catch (e) {
+            // Clipboard API not available or denied
+        }
     }
 
     _clearSelection() {
@@ -1094,15 +1136,22 @@ class App {
     _openFile() {
         const input = document.createElement('input');
         input.type = 'file';
-        input.accept = '.pix8,.bmp,.pcx';
+        input.accept = '.pix8,.bmp,.pcx,.png,.jpg,.jpeg,.gif,.webp';
         input.addEventListener('change', () => {
             const file = input.files[0];
             if (!file) return;
+            const ext = file.name.split('.').pop().toLowerCase();
+
+            // Truecolor image formats — decode via canvas, then quantize
+            if (['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(ext)) {
+                this._openTruecolorFile(file);
+                return;
+            }
+
             const reader = new FileReader();
             reader.onload = () => {
                 try {
                     let newDoc;
-                    const ext = file.name.split('.').pop().toLowerCase();
                     if (ext === 'pix8') {
                         newDoc = loadPix8(reader.result);
                     } else if (ext === 'bmp') {
@@ -1113,7 +1162,6 @@ class App {
                         alert('Unsupported file format');
                         return;
                     }
-                    // Replace current doc — simplest approach: reload the app
                     this._replaceDocument(newDoc);
                 } catch (err) {
                     alert('Error loading file: ' + err.message);
@@ -1122,6 +1170,209 @@ class App {
             reader.readAsArrayBuffer(file);
         });
         input.click();
+    }
+
+    _openTruecolorFile(file) {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            const imageData = ctx.getImageData(0, 0, img.width, img.height);
+            URL.revokeObjectURL(url);
+            this._showQuantizeDialog(imageData.data, img.width, img.height, (doc) => {
+                this._replaceDocument(doc);
+            });
+        };
+        img.onerror = () => {
+            URL.revokeObjectURL(url);
+            alert('Error loading image file');
+        };
+        img.src = url;
+    }
+
+    _showQuantizeDialog(rgbaData, width, height, callback) {
+        const overlay = document.createElement('div');
+        overlay.className = 'palette-dialog-overlay';
+
+        const dialog = document.createElement('div');
+        dialog.className = 'palette-dialog';
+        dialog.style.width = 'fit-content';
+
+        const header = document.createElement('div');
+        header.className = 'palette-dialog-header';
+        header.innerHTML = '<span>Import Image</span>';
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'palette-dialog-close';
+        closeBtn.textContent = '\u00D7';
+        closeBtn.addEventListener('click', () => overlay.remove());
+        header.appendChild(closeBtn);
+        dialog.appendChild(header);
+
+        const info = document.createElement('div');
+        info.style.cssText = 'font-size:12px;color:var(--text-dim);margin-bottom:8px;';
+        info.textContent = `Image: ${width} \u00D7 ${height} pixels`;
+        dialog.appendChild(info);
+
+        // Colors
+        const colorsRow = document.createElement('div');
+        colorsRow.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;';
+        const colorsLabel = document.createElement('label');
+        colorsLabel.textContent = 'Colors:';
+        const colorsInput = document.createElement('input');
+        colorsInput.type = 'number';
+        colorsInput.min = 1;
+        colorsInput.max = 256;
+        colorsInput.value = 256;
+        colorsInput.style.cssText = 'width:50px;background:var(--bg-input);border:1px solid var(--border);border-radius:2px;color:var(--text);padding:2px 4px;text-align:center;font-size:12px;';
+        colorsRow.appendChild(colorsLabel);
+        colorsRow.appendChild(colorsInput);
+        dialog.appendChild(colorsRow);
+
+        // Dithering
+        const ditherRow = document.createElement('div');
+        ditherRow.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:12px;';
+        const ditherLabel = document.createElement('label');
+        ditherLabel.textContent = 'Dithering:';
+        const ditherSelect = document.createElement('select');
+        ditherSelect.style.cssText = 'background:var(--bg-input);border:1px solid var(--border);border-radius:2px;color:var(--text);padding:2px 4px;font-size:12px;';
+        for (const [val, label] of [['none', 'None'], ['floyd-steinberg', 'Floyd-Steinberg'], ['ordered', 'Ordered (Bayer)']]) {
+            const opt = document.createElement('option');
+            opt.value = val;
+            opt.textContent = label;
+            ditherSelect.appendChild(opt);
+        }
+        ditherRow.appendChild(ditherLabel);
+        ditherRow.appendChild(ditherSelect);
+        dialog.appendChild(ditherRow);
+
+        // Buttons
+        const footer = document.createElement('div');
+        footer.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;padding-top:8px;border-top:1px solid var(--border);';
+        const cancelBtn = document.createElement('button');
+        cancelBtn.textContent = 'Cancel';
+        cancelBtn.className = 'palette-dialog-footer';
+        cancelBtn.style.cssText = 'padding:4px 14px;border:1px solid var(--border);border-radius:3px;background:var(--bg-input);color:var(--text);cursor:pointer;font-size:12px;';
+        cancelBtn.addEventListener('click', () => overlay.remove());
+        const okBtn = document.createElement('button');
+        okBtn.textContent = 'OK';
+        okBtn.style.cssText = 'padding:4px 14px;border:1px solid var(--accent);border-radius:3px;background:var(--accent);color:var(--text-bright);cursor:pointer;font-size:12px;';
+        okBtn.addEventListener('click', () => {
+            const numColors = Math.max(1, Math.min(256, parseInt(colorsInput.value) || 256));
+            const ditherMode = ditherSelect.value;
+            const result = quantizeImage(rgbaData, width, height, numColors, ditherMode);
+
+            const doc = new ImageDocument(width, height);
+            // Set palette
+            for (let i = 0; i < 256; i++) {
+                if (i < result.palette.length) {
+                    doc.palette.setColor(i, ...result.palette[i]);
+                } else {
+                    doc.palette.setColor(i, 0, 0, 0);
+                }
+            }
+            // Set pixel data
+            const layer = doc.getActiveLayer();
+            layer.data.set(result.indices);
+            overlay.remove();
+            callback(doc);
+        });
+        footer.appendChild(cancelBtn);
+        footer.appendChild(okBtn);
+        dialog.appendChild(footer);
+
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+
+        // Escape to close
+        const onKey = (e) => {
+            if (e.key === 'Escape') {
+                overlay.remove();
+                document.removeEventListener('keydown', onKey);
+            }
+        };
+        document.addEventListener('keydown', onKey);
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) overlay.remove();
+        });
+    }
+
+    _showPasteDitherDialog(rgbaData, width, height, callback) {
+        const overlay = document.createElement('div');
+        overlay.className = 'palette-dialog-overlay';
+
+        const dialog = document.createElement('div');
+        dialog.className = 'palette-dialog';
+        dialog.style.width = 'fit-content';
+
+        const header = document.createElement('div');
+        header.className = 'palette-dialog-header';
+        header.innerHTML = '<span>Paste Image</span>';
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'palette-dialog-close';
+        closeBtn.textContent = '\u00D7';
+        closeBtn.addEventListener('click', () => overlay.remove());
+        header.appendChild(closeBtn);
+        dialog.appendChild(header);
+
+        const info = document.createElement('div');
+        info.style.cssText = 'font-size:12px;color:var(--text-dim);margin-bottom:8px;';
+        info.textContent = `Image: ${width} \u00D7 ${height} pixels — mapping to current palette`;
+        dialog.appendChild(info);
+
+        // Dithering
+        const ditherRow = document.createElement('div');
+        ditherRow.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:12px;';
+        const ditherLabel = document.createElement('label');
+        ditherLabel.textContent = 'Dithering:';
+        const ditherSelect = document.createElement('select');
+        ditherSelect.style.cssText = 'background:var(--bg-input);border:1px solid var(--border);border-radius:2px;color:var(--text);padding:2px 4px;font-size:12px;';
+        for (const [val, label] of [['none', 'None'], ['floyd-steinberg', 'Floyd-Steinberg'], ['ordered', 'Ordered (Bayer)']]) {
+            const opt = document.createElement('option');
+            opt.value = val;
+            opt.textContent = label;
+            ditherSelect.appendChild(opt);
+        }
+        ditherRow.appendChild(ditherLabel);
+        ditherRow.appendChild(ditherSelect);
+        dialog.appendChild(ditherRow);
+
+        // Buttons
+        const footer = document.createElement('div');
+        footer.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;padding-top:8px;border-top:1px solid var(--border);';
+        const cancelBtn = document.createElement('button');
+        cancelBtn.textContent = 'Cancel';
+        cancelBtn.style.cssText = 'padding:4px 14px;border:1px solid var(--border);border-radius:3px;background:var(--bg-input);color:var(--text);cursor:pointer;font-size:12px;';
+        cancelBtn.addEventListener('click', () => overlay.remove());
+        const okBtn = document.createElement('button');
+        okBtn.textContent = 'OK';
+        okBtn.style.cssText = 'padding:4px 14px;border:1px solid var(--accent);border-radius:3px;background:var(--accent);color:var(--text-bright);cursor:pointer;font-size:12px;';
+        okBtn.addEventListener('click', () => {
+            const palette = this.doc.palette.export();
+            const indices = mapToPalette(rgbaData, width, height, palette, ditherSelect.value);
+            overlay.remove();
+            callback(indices, width, height);
+        });
+        footer.appendChild(cancelBtn);
+        footer.appendChild(okBtn);
+        dialog.appendChild(footer);
+
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+
+        const onKey = (e) => {
+            if (e.key === 'Escape') {
+                overlay.remove();
+                document.removeEventListener('keydown', onKey);
+            }
+        };
+        document.addEventListener('keydown', onKey);
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) overlay.remove();
+        });
     }
 
     _replaceDocument(newDoc) {
