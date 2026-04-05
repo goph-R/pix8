@@ -829,6 +829,7 @@ class App {
                 this.doc.layers = [flat];
                 this.doc.activeLayerIndex = 0;
                 this.doc.selectedLayerIndices.clear();
+                this.doc.selectedLayerIndices.add(0);
                 this.undoManager.endOperation();
                 this.bus.emit('layer-changed');
                 this.bus.emit('document-changed');
@@ -839,8 +840,6 @@ class App {
     _mergeSelectedLayers() {
         const doc = this.doc;
         const sel = doc.selectedLayerIndices;
-        // Always include the active layer
-        sel.add(doc.activeLayerIndex);
         if (sel.size < 2) return;
 
         const indices = [...sel].sort((a, b) => a - b);
@@ -874,6 +873,7 @@ class App {
         doc.layers.splice(lowestIdx, 0, merged);
         doc.activeLayerIndex = lowestIdx;
         sel.clear();
+        sel.add(lowestIdx);
 
         this.undoManager.endOperation();
         this.bus.emit('layer-changed');
@@ -1136,6 +1136,7 @@ class App {
 
         // Reset selection and layer selection for new document dimensions
         this.doc.selectedLayerIndices.clear();
+        this.doc.selectedLayerIndices.add(this.doc.activeLayerIndex);
         this.doc.selection.resize(newDoc.width, newDoc.height);
         this.canvasView.stopMarchingAnts();
 
@@ -1262,6 +1263,8 @@ class App {
                 const insertIdx = this.doc.activeLayerIndex + 1;
                 this.doc.layers.splice(insertIdx, 0, importedLayer);
                 this.doc.activeLayerIndex = insertIdx;
+                this.doc.selectedLayerIndices.clear();
+                this.doc.selectedLayerIndices.add(insertIdx);
                 this.bus.emit('layer-changed');
                 this.bus.emit('document-changed');
             });

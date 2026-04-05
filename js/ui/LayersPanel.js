@@ -64,14 +64,18 @@ export class LayersPanel {
 
             item.addEventListener('click', (e) => {
                 if (e.ctrlKey) {
-                    const sel = this.doc.selectedLayerIndices;
-                    if (sel.has(i)) {
-                        sel.delete(i);
-                    } else {
-                        sel.add(i);
+                    // Can't deselect the active layer — it's always selected
+                    if (i !== this.doc.activeLayerIndex) {
+                        const sel = this.doc.selectedLayerIndices;
+                        if (sel.has(i)) {
+                            sel.delete(i);
+                        } else {
+                            sel.add(i);
+                        }
                     }
                 } else {
                     this.doc.selectedLayerIndices.clear();
+                    this.doc.selectedLayerIndices.add(i);
                     this.doc.activeLayerIndex = i;
                     this.bus.emit('active-layer-changed');
                 }

@@ -15,7 +15,7 @@ export class ImageDocument {
         this.bgColorIndex = 0;  // black
         this.activeBrush = Brush.default();
         this.selection = new Selection(width, height);
-        this.selectedLayerIndices = new Set();
+        this.selectedLayerIndices = new Set([0]);
 
         // Start with one empty layer
         this.addLayer('Background');
@@ -34,15 +34,25 @@ export class ImageDocument {
         const insertIdx = this.layers.length === 0 ? 0 : this.activeLayerIndex + 1;
         this.layers.splice(insertIdx, 0, layer);
         this.activeLayerIndex = insertIdx;
+        this.selectedLayerIndices.clear();
+        this.selectedLayerIndices.add(insertIdx);
         return layer;
     }
 
     removeLayer(index) {
         if (this.layers.length <= 1) return false;
         this.layers.splice(index, 1);
+        this.selectedLayerIndices.delete(index);
+        // Shift down indices above the removed one
+        const shifted = new Set();
+        for (const idx of this.selectedLayerIndices) {
+            shifted.add(idx > index ? idx - 1 : idx);
+        }
         if (this.activeLayerIndex >= this.layers.length) {
             this.activeLayerIndex = this.layers.length - 1;
         }
+        shifted.add(this.activeLayerIndex);
+        this.selectedLayerIndices = shifted;
         return true;
     }
 
@@ -51,6 +61,8 @@ export class ImageDocument {
         const [layer] = this.layers.splice(from, 1);
         this.layers.splice(to, 0, layer);
         this.activeLayerIndex = to;
+        this.selectedLayerIndices.clear();
+        this.selectedLayerIndices.add(to);
         return true;
     }
 
@@ -59,6 +71,8 @@ export class ImageDocument {
         const copy = original.clone();
         this.layers.splice(index + 1, 0, copy);
         this.activeLayerIndex = index + 1;
+        this.selectedLayerIndices.clear();
+        this.selectedLayerIndices.add(index + 1);
         return copy;
     }
 
@@ -87,5 +101,41 @@ export class ImageDocument {
             }
         }
         return flat;
+    }
+
+    getUsedColorIndices() {
+        const used = new Set();
+        for (const layer of this.layers) {
+            const data = layer.data;
+            for (let i = 0; i < data.length; i++) {
+                const v = data[i];
+                if (v !== TRANSPARENT) used.add(v);
+            }
+        }
+        return used;
+    }
+
+    getColorHistogram() {
+        const counts = new Uint32Array(256);
+        for (const layer of this.layers) {
+            const data = layer.data;
+            for (let i = 0; i < data.length; i++) {
+                const v = data[i];
+                if (v !== TRANSPARENT) counts[v]++;
+            }
+        }
+        return counts;
+    }
+
+    remapColorIndices(mapping) {
+        for (const layer of this.layers) {
+            const data = layer.data;
+            for (let i = 0; i < data.length; i++) {
+                const v = data[i];
+                if (v !== TRANSPARENT && mapping[v] !== undefined) {
+                    data[i] = mapping[v];
+                }
+            }
+        }
     }
 }

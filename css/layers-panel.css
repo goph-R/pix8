@@ -35,7 +35,7 @@
 .layer-item.selected {
     background: var(--bg-input);
     border-color: var(--accent);
-    border-style: dashed;
+    border-style: solid;
 }
 
 .layer-visibility {

@@ -85,6 +85,7 @@ export function loadPix8(arrayBuffer) {
     }
 
     doc.activeLayerIndex = meta.activeLayerIndex || 0;
+    doc.selectedLayerIndices.add(doc.activeLayerIndex);
     return doc;
 }
 
