@@ -6,7 +6,7 @@ export class ColorPickerTool extends BaseTool {
         super(doc, bus, canvasView);
         this.name = 'Color Picker';
         this.shortcut = 'I';
-        this.icon = `<svg viewBox="0 0 20 20"><path d="M15 2l3 3-2 2-3-3 2-2zM5 12l8-8 3 3-8 8H5v-3z"/><path d="M2 18h5" stroke-width="1.5"/></svg>`;
+        this.icon = `<svg viewBox="0 0 20 20"><path d="M17 3a2 2 0 00-3 0l-2 2-1-1-1 1 1 1-6 6v2h2l6-6 1 1 1-1-1-1 2-2a2 2 0 000-3z"/><path d="M4 16l-2 2" stroke-width="1.5" stroke-linecap="round"/></svg>`;
     }
 
     onPointerDown(x, y, e) {
