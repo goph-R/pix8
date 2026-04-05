@@ -1359,10 +1359,15 @@ class App {
     }
 
     _saveProject() {
+        const name = prompt('Save as:', (this._getActiveTab()?.name || 'untitled'));
+        if (!name) return;
         const tab = this._getActiveTab();
-        const filename = (tab ? tab.name : 'untitled') + '.pix8';
+        if (tab) {
+            tab.name = name;
+            this._renderTabs();
+        }
         const blob = savePix8(this.doc);
-        downloadBlob(blob, filename);
+        downloadBlob(blob, name + '.pix8');
     }
 
     _openFile() {
