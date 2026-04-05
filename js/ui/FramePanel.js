@@ -45,11 +45,6 @@ export class FramePanel {
             this.bus.emit('animation-changed');
             this.bus.emit('layer-changed');
         });
-        btn('\u2750', 'Copy frame', () => {
-            this.doc.addFrame(); // addFrame already copies current
-            this.bus.emit('frame-changed');
-            this.bus.emit('animation-changed');
-        });
         btn('\u2190', 'Move left', () => {
             this.doc.saveCurrentFrame();
             if (this.doc.moveFrame(this.doc.activeFrameIndex, -1)) {
