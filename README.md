@@ -13,7 +13,8 @@ Try it online: https://pix8.dynart.net
 - **Pixel-perfect zoom** -- nearest-neighbor interpolation at all zoom levels (1x-32x), pixel grid overlay at 12x+
 - **Independent layers** -- each layer has its own size and position, auto-extends when drawing outside bounds
 - **Layer operations** -- add, delete, reorder, duplicate, toggle visibility, solo, rename, opacity (0-100%)
-- **Drawing tools** -- Brush, Eraser, Color Picker, Line, Rectangle, Filled Rectangle, Ellipse, Filled Ellipse, Flood Fill
+- **Drawing tools** -- Brush, Eraser, Color Picker, Rectangle, Filled Rectangle, Ellipse, Filled Ellipse, Flood Fill
+- **Brush/Eraser line mode** -- hold Shift to draw straight lines, Ctrl to snap angles to 22.5-degree increments
 - **Brush right-click** -- draw with background color using right mouse button
 - **Pixel-perfect preview** -- all drawing tools show an 80% opacity preview of the exact pixels before committing
 - **Move tool** -- reposition layers and floating selections within the document
@@ -27,7 +28,7 @@ Try it online: https://pix8.dynart.net
 - **Truecolor image import** -- File > Open supports PNG/JPG/GIF/WebP with median-cut quantization and dithering (None/Floyd-Steinberg/Ordered Bayer)
 - **Frame animation** -- sprite-sheet animation with per-frame pixel data; frame timeline with thumbnails, tag groups, play/pause/stop, tag-based playback
 - **Onion skinning** -- red-tinted previous frames, blue-tinted next frames; configurable opacity; extended mode (+-2 frames)
-- **GrafX2-style palette editor** -- range selection, vertical RGB sliders, batch operations (Swap, X-Swap, Copy, Flip, X-Flip, Neg, Gray, Spread, Merge, Sort, Reduce, Zap Unused, Used highlight), 6-bit VGA mode, palette Load/Save (PAL/BMP/PCX)
+- **GrafX2-style palette editor** -- range selection, HSV color picker (saturation/value square + hue strip), RGB sliders with hex input, batch operations (Swap, X-Swap, Copy, Flip, X-Flip, Neg, Gray, Spread, Merge, Sort, Reduce, Zap Unused, Used highlight), 6-bit VGA mode, palette Load/Save (PAL/BMP/PCX)
 - **Desktop-style menus** -- click to open, hover to switch, same for toolbar flyout groups
 - **Undo/Redo** -- Ctrl+Z / Ctrl+Shift+Z, 50-step history including palette edits
 - **SVG icons** -- all toolbar and panel icons are standalone SVG files in `images/` for easy customization
@@ -77,7 +78,6 @@ npm start        # serve (in another terminal)
 | B | Brush tool |
 | E | Eraser tool |
 | I | Color Picker tool |
-| L | Line tool |
 | U | Rectangle tool |
 | O | Ellipse tool |
 | G | Flood Fill tool |

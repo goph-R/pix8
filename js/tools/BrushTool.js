@@ -9,6 +9,8 @@ export class BrushTool extends BaseTool {
         this.icon = 'images/icon-brush.svg';
         this._lastX = null;
         this._lastY = null;
+        this._startX = null;
+        this._startY = null;
         this._lineMode = false;
         this._color = undefined;
     }
@@ -64,7 +66,6 @@ export class BrushTool extends BaseTool {
 
     onPointerUp(x, y, e) {
         if (this._lineMode && this._startX !== null) {
-            if (this._startX === null) return;
             const end = this._snapEnd(x, y, e);
             const layer = this.doc.getActiveLayer();
             if (!layer.locked) {

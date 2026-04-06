@@ -1,6 +1,6 @@
 {
   "name": "pix8",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "description": "256-color indexed pixel art editor",
   "main": "electron-main.js",
   "scripts": {

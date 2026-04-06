@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.10.0] - 2026-04-06
+
+### Added
+- **HSV color picker** -- Photoshop-style saturation/value square with vertical hue strip in the palette editor, replacing the vertical RGB sliders
+- **RGB sliders** -- horizontal R, G, B sliders with number inputs below the color picker
+- **Hex color input** -- `#RRGGBB` text input with auto-strip `#` on paste
+- **Brush line mode** -- hold Shift to draw straight lines with the Brush tool (same as Eraser), Ctrl to snap to 22.5-degree angles
+
+### Removed
+- **Line tool** -- merged into Brush tool as Shift+drag line mode
+
+### Fixed
+- 6-bit palette snap overflow producing index 256 instead of 255 at max white
+
 ## [0.9.0] - 2026-04-06
 
 ### Added
