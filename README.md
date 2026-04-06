@@ -142,3 +142,7 @@ webpack.config.js  Webpack configuration
 - GIF export uses a native LZW encoder -- no external encoding libraries
 - SPX export uses skyline bin packing to minimize sprite sheet area within 320x200 VGA constraints
 - JSZip is the only runtime dependency (for SPX ZIP export)
+
+## Known Issues
+
+- **Subpixel rendering glitches at fractional display scaling** -- grid lines, guides, and selection marching ants may appear misaligned or jittery on displays with scaling other than 100% or 200% (e.g., 125%, 150%). This is caused by CSS pixels not aligning with physical device pixels at fractional `devicePixelRatio` values. Fixing this would require DPR-aware canvas rendering throughout the entire canvas stack -- not yet planned.
