@@ -1,10 +1,12 @@
 # Changelog
 
-## [1.3.0] - 2026-04-06
+## [1.3.0] - 2026-04-07
 
 ### Added
-- **Trim to Content** -- Layer menu item that crops the active layer to its non-transparent bounding box, reducing file size
-- **"No content to copy" status** -- status bar message when Ctrl+C copies only transparent pixels
+- **Trim to Content** -- Layer menu item that crops the active layer to its non-transparent bounding box
+- **Crop to Canvas** -- Layer menu item that clips the active layer to the document viewport bounds
+- **Show Border** -- Layer menu toggle that draws a dashed yellow border around the active layer
+- **"No content to copy" feedback** -- toast message when Ctrl+C copies only transparent pixels
 - **Per-frame layer merge** -- Merge Selected now composites layers independently per frame instead of only the current frame
 - **Toast notifications** -- slide-down toast from top center replaces browser alert() dialogs and status bar messages; 1.5s for info, 3s for errors
 - **Space shortcut** -- tap Space to toggle Play Tag / Stop; hold Space + move mouse to pan canvas
@@ -17,6 +19,8 @@
 - Frame thumbnails now fully refresh after merge undo/redo
 - Merge All no longer destroys animation frame data
 - Animation panel no longer shifts down when adding layers
+- Save project now calls saveCurrentFrame() so per-frame layer dimensions persist correctly
+- Frame restore now always updates layer width/height from stored frame data (fixes trim not persisting across frames)
 
 ## [1.2.1] - 2026-04-06
 

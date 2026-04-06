@@ -44,6 +44,7 @@ export class CanvasView {
         this.rulers = new Rulers();
         this.rulersVisible = false;
         this.guides = new Guides(this);
+        this.showLayerBorder = false;
 
         // Marching ants state
         this._marchingAntsOffset = 0;
@@ -564,6 +565,22 @@ export class CanvasView {
             this._drawConfigGrid(doc.width, doc.height, zoom, panX, panY);
         }
         this.guides.draw(this.selectionCtx, cw, ch, zoom, panX, panY);
+        // Draw active layer border
+        if (this.showLayerBorder) {
+            const layer = doc.getActiveLayer();
+            if (layer) {
+                const ctx = this.selectionCtx;
+                const lx = panX + layer.offsetX * zoom;
+                const ly = panY + layer.offsetY * zoom;
+                const lw = layer.width * zoom;
+                const lh = layer.height * zoom;
+                ctx.strokeStyle = 'rgba(255, 220, 0, 0.8)';
+                ctx.lineWidth = 1;
+                ctx.setLineDash([4, 4]);
+                ctx.strokeRect(lx + 0.5, ly + 0.5, lw - 1, lh - 1);
+                ctx.setLineDash([]);
+            }
+        }
         if (this._activeTool && this._activeTool.isTransformActive) {
             this._activeTool.drawTransformBox(this.selectionCtx, zoom, panX, panY);
         } else if (doc.selection.active) {

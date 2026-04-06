@@ -1426,6 +1426,11 @@ class App {
         this._showDropdown(anchor, 'layer', [
             { label: 'Convert to Bitmap', disabled: !isTextLayer, action: () => this._convertTextToBitmap() },
             { label: 'Trim to Content', disabled: isTextLayer, action: () => this._trimLayerToContent() },
+            { label: 'Crop to Canvas', disabled: isTextLayer, action: () => this._cropLayerToCanvas() },
+            { label: (this.canvasView.showLayerBorder ? '\u2713 ' : '') + 'Show Border', action: () => {
+                this.canvasView.showLayerBorder = !this.canvasView.showLayerBorder;
+                this.canvasView.render();
+            }},
             '-',
             { label: 'Merge Selected', disabled: !multiSelected, action: () => this._mergeSelectedLayers() },
             { label: 'Merge All', action: () => {
@@ -1474,6 +1479,46 @@ class App {
         layer.height = lh;
         this.undoManager.endOperation();
         this._showToast('Trimmed');
+        this.bus.emit('layer-changed');
+        this.bus.emit('document-changed');
+    }
+
+    _cropLayerToCanvas() {
+        const layer = this.doc.getActiveLayer();
+        if (!layer || layer.type === 'text') return;
+        const docW = this.doc.width;
+        const docH = this.doc.height;
+        // Intersection of layer rect with document rect
+        const cx0 = Math.max(0, layer.offsetX);
+        const cy0 = Math.max(0, layer.offsetY);
+        const cx1 = Math.min(docW, layer.offsetX + layer.width);
+        const cy1 = Math.min(docH, layer.offsetY + layer.height);
+        const cw = cx1 - cx0;
+        const ch = cy1 - cy0;
+        if (cw <= 0 || ch <= 0) {
+            this._showToast('Layer is outside canvas');
+            return;
+        }
+        if (cx0 === layer.offsetX && cy0 === layer.offsetY && cw === layer.width && ch === layer.height) {
+            this._showToast('Layer already fits canvas');
+            return;
+        }
+        this.undoManager.beginOperation();
+        const newData = new Uint16Array(cw * ch);
+        for (let y = 0; y < ch; y++) {
+            for (let x = 0; x < cw; x++) {
+                const lx = (cx0 - layer.offsetX) + x;
+                const ly = (cy0 - layer.offsetY) + y;
+                newData[y * cw + x] = layer.data[ly * layer.width + lx];
+            }
+        }
+        layer.data = newData;
+        layer.offsetX = cx0;
+        layer.offsetY = cy0;
+        layer.width = cw;
+        layer.height = ch;
+        this.undoManager.endOperation();
+        this._showToast('Cropped to canvas');
         this.bus.emit('layer-changed');
         this.bus.emit('document-changed');
     }
@@ -2057,6 +2102,7 @@ class App {
     }
 
     _saveProject() {
+        if (this.doc.animationEnabled) this.doc.saveCurrentFrame();
         const tab = this._getActiveTab();
         const filename = (tab ? tab.name : 'untitled') + '.pix8';
         const blob = savePix8(this.doc);

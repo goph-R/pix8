@@ -14,7 +14,7 @@ Try it online: https://pix8.dynart.net
 - **Configurable grid** -- user-settable grid size with snap-to-grid support (View > Grid Settings)
 - **Rulers and guides** -- pixel rulers along canvas edges; drag from ruler to create custom guide lines with snap support
 - **Independent layers** -- each layer has its own size and position, auto-extends when drawing outside bounds
-- **Layer operations** -- add, delete, reorder, duplicate, toggle visibility, solo, rename, opacity (0-100%), trim to content
+- **Layer operations** -- add, delete, reorder, duplicate, toggle visibility, solo, rename, opacity (0-100%), trim to content, crop to canvas, show border
 - **Unified export dialog** -- single "Export as..." dialog (Ctrl+Shift+E) with format selector (BMP, PCX, PNG, GIF, SPX) and format-specific options
 - **Drawing tools** -- Brush, Eraser, Color Picker, Rectangle, Filled Rectangle, Ellipse, Filled Ellipse, Flood Fill
 - **Brush/Eraser line mode** -- hold Shift to draw straight lines, Ctrl to snap angles to 22.5-degree increments

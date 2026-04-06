@@ -230,15 +230,8 @@ export class ImageDocument {
             layer.textData = ld.textData ? { ...ld.textData } : null;
             layer.offsetX = ld.offsetX;
             layer.offsetY = ld.offsetY;
-            // Restore dimensions from data length
-            if (layer.type !== 'text') {
-                const expectedSize = layer.width * layer.height;
-                if (ld.data.length !== expectedSize) {
-                    // Dimensions may have changed; recalculate
-                    layer.width = ld.width || layer.width;
-                    layer.height = ld.height || layer.height;
-                }
-            }
+            if (ld.width !== undefined) layer.width = ld.width;
+            if (ld.height !== undefined) layer.height = ld.height;
         }
     }
 
