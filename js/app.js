@@ -172,7 +172,7 @@ class App {
             if (tool === ft && !ft.isTransformActive) {
                 const sel = this.doc.selection;
                 if (!sel.active) {
-                    alert('No selection');
+                    this._showToast('No selection');
                     const fallback = this._lastNonTransformTool || 'Rect Select';
                     this.toolbar.setActiveTool(fallback);
                     return;
@@ -475,13 +475,19 @@ class App {
     // ── Tool Hints ──────────────────────────────────────────────────
 
     _showStatus(msg) {
-        const el = document.getElementById('status-hint');
+        this._showToast(msg);
+    }
+
+    _showToast(msg, duration = 1500) {
+        const el = document.getElementById('toast');
         el.textContent = msg;
-        clearTimeout(this._statusTimer);
-        this._statusTimer = setTimeout(() => {
-            const tool = this.canvasView.activeTool;
-            el.textContent = tool ? this._getToolHint(tool.name) : '';
-        }, 2000);
+        el.classList.remove('toast-visible');
+        void el.offsetHeight; // force reflow to restart transition
+        el.classList.add('toast-visible');
+        clearTimeout(this._toastTimer);
+        this._toastTimer = setTimeout(() => {
+            el.classList.remove('toast-visible');
+        }, duration);
     }
 
     _getToolHint(name) {
@@ -1157,7 +1163,7 @@ class App {
     _clearSelection() {
         const sel = this.doc.selection;
         if (!sel.active) {
-            alert('No selection');
+            this._showToast('No selection');
             return;
         }
         this.undoManager.beginOperation();
@@ -1184,7 +1190,7 @@ class App {
     _setBrushFromSelection() {
         const sel = this.doc.selection;
         if (!sel.active) {
-            alert('No selection');
+            this._showToast('No selection');
             return;
         }
         const copied = sel.copyPixels(this.doc.getActiveLayer());
@@ -2079,12 +2085,12 @@ class App {
                     } else if (ext === 'pcx') {
                         newDoc = importPCX(reader.result);
                     } else {
-                        alert('Unsupported file format');
+                        this._showToast('Unsupported file format');
                         return;
                     }
                     this._openInNewTab(file.name, newDoc);
                 } catch (err) {
-                    alert('Error loading file: ' + err.message);
+                    this._showToast('Error loading file: ' + err.message, 3000);
                 }
             };
             reader.readAsArrayBuffer(file);
@@ -2135,7 +2141,7 @@ class App {
         };
         img.onerror = () => {
             URL.revokeObjectURL(url);
-            alert('Error loading image file');
+            this._showToast('Error loading image file', 3000);
         };
         img.src = url;
     }
@@ -2365,7 +2371,7 @@ class App {
     _parseImageFile(file, callback, { askTransparency = true } = {}) {
         const ext = file.name.split('.').pop().toLowerCase();
         if (ext !== 'bmp' && ext !== 'pcx') {
-            alert('Unsupported format. Please use BMP or PCX files.');
+            this._showToast('Unsupported format. Use BMP or PCX files.');
             return;
         }
         const reader = new FileReader();
@@ -2383,7 +2389,7 @@ class App {
                     callback(doc, file);
                 }
             } catch (err) {
-                alert('Error importing file: ' + err.message);
+                this._showToast('Error importing file: ' + err.message, 3000);
             }
         };
         reader.readAsArrayBuffer(file);

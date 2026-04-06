@@ -163,6 +163,32 @@ html, body {
     opacity: 0.7;
 }
 
+/* Toast notification */
+#toast {
+    position: fixed;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%) translateY(-100%);
+    background: var(--bg-panel);
+    color: var(--text-bright);
+    border: 1px solid var(--border);
+    border-top: none;
+    border-radius: 0 0 6px 6px;
+    padding: 8px 20px;
+    font-size: 12px;
+    z-index: 2000;
+    pointer-events: none;
+    opacity: 0;
+    transition: transform 0.25s ease-out, opacity 0.25s ease-out;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    white-space: nowrap;
+}
+
+#toast.toast-visible {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+}
+
 /* Scrollbar styling */
 ::-webkit-scrollbar {
     width: 8px;

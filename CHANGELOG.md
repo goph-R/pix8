@@ -6,7 +6,7 @@
 - **Trim to Content** -- Layer menu item that crops the active layer to its non-transparent bounding box, reducing file size
 - **"No content to copy" status** -- status bar message when Ctrl+C copies only transparent pixels
 - **Per-frame layer merge** -- Merge Selected now composites layers independently per frame instead of only the current frame
-- **Status message system** -- temporary messages in the status bar that auto-restore the tool hint
+- **Toast notifications** -- slide-down toast from top center replaces browser alert() dialogs and status bar messages; 1.5s for info, 3s for errors
 
 ### Fixed
 - Pasting (Ctrl+V) no longer duplicates content across all animation frames; new layers get transparent data on other frames
