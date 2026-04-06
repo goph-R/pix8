@@ -21,6 +21,7 @@ export class ImageDocument {
         this.animationEnabled = false;
         this.onionSkinning = false;
         this.onionOpacity = 50;
+        this.onionExtended = false;
         this.frames = [];
         this.activeFrameIndex = 0;
 

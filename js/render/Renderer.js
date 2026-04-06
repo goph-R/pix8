@@ -171,12 +171,17 @@ export class Renderer {
         const doc = this.doc;
         const activeIdx = doc.activeFrameIndex;
         const frames = doc.frames;
-        const onionOpacity = (doc.onionOpacity ?? 50) / 100;
+        const baseOpacity = (doc.onionOpacity ?? 50) / 100;
+        const range = doc.onionExtended ? 2 : 1;
 
-        // Indices to render: previous and next frame
-        const indices = [];
-        if (activeIdx > 0) indices.push(activeIdx - 1);
-        if (activeIdx < frames.length - 1) indices.push(activeIdx + 1);
+        // Collect frames to render: { index, step } where step is distance from active
+        const onionFrames = [];
+        for (let d = 1; d <= range; d++) {
+            if (activeIdx - d >= 0) onionFrames.push({ index: activeIdx - d, step: d, dir: -1 });
+            if (activeIdx + d < frames.length) onionFrames.push({ index: activeIdx + d, step: d, dir: 1 });
+        }
+
+        if (onionFrames.length === 0) return;
 
         // Save current layer state
         const saved = doc.layers.map(l => ({
@@ -185,17 +190,23 @@ export class Renderer {
             width: l.width, height: l.height,
         }));
 
-        for (const fi of indices) {
-            const frame = frames[fi];
+        for (const { index, step, dir } of onionFrames) {
+            const frame = frames[index];
             if (!frame.layerData) continue;
 
-            // Temporarily load frame data
+            // Opacity decreases with distance
+            const opacity = baseOpacity / step;
+
+            // Tint: red for previous frames, blue for next frames
+            const tintR = dir < 0 ? 255 : 0;
+            const tintG = 0;
+            const tintB = dir > 0 ? 255 : 0;
+
             doc._restoreLayersFromFrame(frame);
 
-            // Composite this frame's layers at reduced opacity
             for (const layer of doc.layers) {
                 if (!layer.visible) continue;
-                if (layer.type === 'text' && layer.textData) continue; // skip text for onion
+                if (layer.type === 'text' && layer.textData) continue;
 
                 const lx0 = Math.max(0, layer.offsetX);
                 const ly0 = Math.max(0, layer.offsetY);
@@ -215,13 +226,17 @@ export class Renderer {
                         const colorIndex = layerData[localRowStart + dx];
                         if (colorIndex === TRANSPARENT) continue;
                         const [r, g, b] = palette.getColor(colorIndex);
+                        // Mix pixel color with tint (50/50), then blend onto canvas
+                        const tr = (r + tintR) >> 1;
+                        const tg = (g + tintG) >> 1;
+                        const tb = (b + tintB) >> 1;
                         const off = (docRowStart + dx) * 4;
-                        const br = buf[off + 3] ? buf[off] : 0;
-                        const bg = buf[off + 3] ? buf[off + 1] : 0;
-                        const bb = buf[off + 3] ? buf[off + 2] : 0;
-                        buf[off] = Math.round(r * onionOpacity + br * (1 - onionOpacity));
-                        buf[off + 1] = Math.round(g * onionOpacity + bg * (1 - onionOpacity));
-                        buf[off + 2] = Math.round(b * onionOpacity + bb * (1 - onionOpacity));
+                        const bgr = buf[off + 3] ? buf[off] : 0;
+                        const bgg = buf[off + 3] ? buf[off + 1] : 0;
+                        const bgb = buf[off + 3] ? buf[off + 2] : 0;
+                        buf[off] = Math.round(tr * opacity + bgr * (1 - opacity));
+                        buf[off + 1] = Math.round(tg * opacity + bgg * (1 - opacity));
+                        buf[off + 2] = Math.round(tb * opacity + bgb * (1 - opacity));
                         buf[off + 3] = 255;
                     }
                 }

@@ -29,6 +29,7 @@ export function savePix8(doc) {
         animationEnabled: doc.animationEnabled,
         onionSkinning: doc.onionSkinning,
         onionOpacity: doc.onionOpacity,
+        onionExtended: doc.onionExtended,
         frames: doc.animationEnabled ? doc.frames.map(f => ({
             tag: f.tag,
             delay: f.delay,
@@ -135,6 +136,7 @@ export function loadPix8(arrayBuffer) {
         doc.animationEnabled = true;
         doc.onionSkinning = !!meta.onionSkinning;
         doc.onionOpacity = meta.onionOpacity ?? 50;
+        doc.onionExtended = !!meta.onionExtended;
         doc.activeFrameIndex = meta.activeFrameIndex || 0;
         doc.frames = meta.frames.map(frameMeta => {
             const frame = {

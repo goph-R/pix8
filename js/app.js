@@ -37,6 +37,7 @@ import {
     exportPNG, downloadBlob
 } from './util/io.js';
 import { exportGIF } from './util/gif.js';
+import { exportSPXZip } from './util/spx.js';
 
 import { quantizeImage, mapToPalette } from './util/quantize.js';
 
@@ -853,6 +854,7 @@ class App {
             { label: 'Export PCX', action: () => this._exportPCX() },
             { label: 'Export PNG', action: () => this._exportPNG() },
             { label: 'Export GIF', action: () => this._exportGIF(), disabled: !this.doc.animationEnabled },
+            { label: 'Export SPX', action: () => this._exportSPX(), disabled: !this.doc.animationEnabled },
         ]);
     }
 
@@ -2401,6 +2403,99 @@ class App {
         document.body.appendChild(overlay);
 
         // Keyboard
+        dialog.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') overlay.remove();
+            if (e.key === 'Enter') exportBtn.click();
+        });
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) overlay.remove();
+        });
+    }
+
+    _exportSPX() {
+        if (!this.doc.animationEnabled || this.doc.frames.length === 0) return;
+
+        // Get the tab name as default sprite name
+        const tab = this._tabs.find(t => t.id === this._activeTabId);
+        const defaultName = tab ? tab.name.replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase() : 'sprite';
+
+        const overlay = document.createElement('div');
+        overlay.className = 'palette-dialog-overlay';
+
+        const dialog = document.createElement('div');
+        dialog.className = 'palette-dialog';
+        dialog.style.cssText = 'width:280px;max-width:90vw;';
+
+        // Header
+        const header = document.createElement('div');
+        header.className = 'palette-dialog-header';
+        header.innerHTML = '<span>Export SPX</span>';
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'palette-dialog-close';
+        closeBtn.textContent = '\u00D7';
+        closeBtn.addEventListener('click', () => overlay.remove());
+        header.appendChild(closeBtn);
+        dialog.appendChild(header);
+
+        // Body
+        const body = document.createElement('div');
+        body.style.cssText = 'display:flex;flex-direction:column;gap:8px;padding:8px 0;';
+
+        // Name
+        const nameRow = document.createElement('div');
+        nameRow.style.cssText = 'display:flex;align-items:center;gap:8px;';
+        const nameLabel = document.createElement('label');
+        nameLabel.textContent = 'Name:';
+        nameLabel.style.cssText = 'font-size:13px;color:var(--text);width:60px;';
+        const nameInput = document.createElement('input');
+        nameInput.type = 'text';
+        nameInput.value = defaultName;
+        nameInput.style.cssText = 'flex:1;padding:3px 6px;background:var(--bg-input);border:1px solid var(--border);color:var(--text);border-radius:3px;font-size:13px;';
+        nameRow.appendChild(nameLabel);
+        nameRow.appendChild(nameInput);
+        body.appendChild(nameRow);
+
+        // Info
+        const info = document.createElement('div');
+        info.style.cssText = 'font-size:11px;color:var(--text-dim);';
+        const tagCount = this.doc.frames.filter(f => f.tag).length;
+        const groups = new Set();
+        for (const f of this.doc.frames) { if (f.tag) groups.add(f.tag); }
+        info.textContent = `${this.doc.frames.length} frames, ${groups.size || 1} sprite${groups.size > 1 ? 's' : ''} \u2022 ${this.doc.width}\u00D7${this.doc.height}px`;
+        body.appendChild(info);
+
+        dialog.appendChild(body);
+
+        // Footer
+        const footer = document.createElement('div');
+        footer.className = 'palette-dialog-footer';
+        footer.style.justifyContent = 'flex-end';
+        footer.style.gap = '8px';
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.textContent = 'Cancel';
+        cancelBtn.addEventListener('click', () => overlay.remove());
+
+        const exportBtn = document.createElement('button');
+        exportBtn.textContent = 'Export';
+        exportBtn.className = 'primary';
+        exportBtn.addEventListener('click', async () => {
+            const spriteName = nameInput.value.trim() || defaultName;
+            overlay.remove();
+            const zipBlob = await exportSPXZip(this.doc, { name: spriteName });
+            downloadBlob(zipBlob, spriteName + '.zip');
+        });
+
+        footer.appendChild(cancelBtn);
+        footer.appendChild(exportBtn);
+        dialog.appendChild(footer);
+
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+
+        nameInput.focus();
+        nameInput.select();
+
         dialog.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') overlay.remove();
             if (e.key === 'Enter') exportBtn.click();

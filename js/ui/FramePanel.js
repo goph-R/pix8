@@ -111,6 +111,20 @@ export class FramePanel {
         header.appendChild(this._onionOpacityInput);
         header.appendChild(pctLabel);
 
+        // Onion extended checkbox (+/- 2 frames)
+        const extLabel = document.createElement('label');
+        extLabel.style.cssText = 'display:flex;align-items:center;gap:3px;font-size:11px;color:var(--text-dim);cursor:pointer;user-select:none;margin-left:2px;';
+        this._onionExtCheckbox = document.createElement('input');
+        this._onionExtCheckbox.type = 'checkbox';
+        this._onionExtCheckbox.checked = this.doc.onionExtended;
+        this._onionExtCheckbox.addEventListener('change', () => {
+            this.doc.onionExtended = this._onionExtCheckbox.checked;
+            this.bus.emit('document-changed');
+        });
+        extLabel.appendChild(this._onionExtCheckbox);
+        extLabel.appendChild(document.createTextNode('\u00B12'));
+        header.appendChild(extLabel);
+
         this.panel.appendChild(header);
 
         // Frame list
@@ -123,6 +137,7 @@ export class FramePanel {
         this.panel.classList.add('visible');
         this._onionCheckbox.checked = this.doc.onionSkinning;
         this._onionOpacityInput.value = this.doc.onionOpacity ?? 50;
+        this._onionExtCheckbox.checked = this.doc.onionExtended;
         this.render();
     }
 
