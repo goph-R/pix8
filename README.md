@@ -33,7 +33,7 @@ Try it online: https://pix8.dynart.net
 - **Onion skinning** -- red-tinted previous frames, blue-tinted next frames; configurable opacity; extended mode (+-2 frames)
 - **GrafX2-style palette editor** -- range selection, HSV color picker (saturation/value square + hue strip), RGB sliders with hex input, batch operations (Swap, X-Swap, Copy, Flip, X-Flip, Neg, Gray, Spread, Merge, Sort, Reduce, Zap Unused, Used highlight), 6-bit VGA mode, palette Load/Save (PAL/BMP/PCX)
 
-<img src="https://github.com/DynartInteractive/Pix8/raw/main/palette-editor-v1.3.0.png" alt="Palette Editor Screenshot" style="display: block; margin: 0 auto">
+<img align="center" src="https://github.com/DynartInteractive/Pix8/raw/main/palette-editor-v1.3.0.png" alt="Palette Editor Screenshot">
 
 - **Toast notifications** -- non-blocking slide-down messages replace browser alert dialogs
 - **Desktop-style menus** -- click to open, hover to switch, same for toolbar flyout groups
