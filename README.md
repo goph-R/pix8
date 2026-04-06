@@ -4,7 +4,7 @@ A browser-based 256-color indexed pixel art editor inspired by VGA-era graphics 
 
 Try it online: https://pix8.dynart.net
 
-![Pix8 Screenshot](screenshot-v0.9.0.png)
+![Pix8 Screenshot](screenshot-v1.3.0.png)
 
 ## Features
 
