@@ -1,12 +1,14 @@
 export class LayersPanel {
-    constructor(doc, bus) {
+    constructor(doc, bus, undoManager) {
         this.doc = doc;
         this.bus = bus;
+        this.undoManager = undoManager;
 
         this.list = document.getElementById('layers-list');
         this._opacityRow = document.getElementById('layer-opacity-row');
         this._opacitySlider = document.getElementById('layer-opacity-slider');
         this._opacityNum = document.getElementById('layer-opacity-num');
+        this._opacityBefore = null;
 
         document.getElementById('layer-add-btn').addEventListener('click', () => this._addLayer());
         document.getElementById('layer-del-btn').addEventListener('click', () => this._deleteLayer());
@@ -14,17 +16,45 @@ export class LayersPanel {
         document.getElementById('layer-down-btn').addEventListener('click', () => this._moveLayer(1));
         document.getElementById('layer-dup-btn').addEventListener('click', () => this._duplicateLayer());
 
+        this._opacitySlider.addEventListener('pointerdown', () => {
+            this._opacityBefore = this.doc.getActiveLayer().opacity;
+        });
         this._opacitySlider.addEventListener('input', () => {
             const val = parseInt(this._opacitySlider.value);
             this._opacityNum.value = val;
             this.doc.getActiveLayer().opacity = val / 100;
             this.bus.emit('layer-changed');
         });
+        this._opacitySlider.addEventListener('pointerup', () => {
+            const layer = this.doc.getActiveLayer();
+            if (this._opacityBefore !== null && layer.opacity !== this._opacityBefore) {
+                this.undoManager.pushEntry({
+                    type: 'layer-opacity',
+                    layerIndex: this.doc.activeLayerIndex,
+                    beforeOpacity: this._opacityBefore,
+                    afterOpacity: layer.opacity,
+                });
+            }
+            this._opacityBefore = null;
+        });
+        this._opacityNum.addEventListener('focus', () => {
+            this._opacityBefore = this.doc.getActiveLayer().opacity;
+        });
         this._opacityNum.addEventListener('change', () => {
             const val = Math.max(0, Math.min(100, parseInt(this._opacityNum.value) || 100));
             this._opacitySlider.value = val;
             this._opacityNum.value = val;
-            this.doc.getActiveLayer().opacity = val / 100;
+            const layer = this.doc.getActiveLayer();
+            layer.opacity = val / 100;
+            if (this._opacityBefore !== null && layer.opacity !== this._opacityBefore) {
+                this.undoManager.pushEntry({
+                    type: 'layer-opacity',
+                    layerIndex: this.doc.activeLayerIndex,
+                    beforeOpacity: this._opacityBefore,
+                    afterOpacity: layer.opacity,
+                });
+            }
+            this._opacityBefore = null;
             this.bus.emit('layer-changed');
         });
 
@@ -33,6 +63,20 @@ export class LayersPanel {
         this.bus.on('active-layer-changed', () => this.render());
 
         this.render();
+    }
+
+    _snapshotMeta() {
+        return {
+            activeIndex: this.doc.activeLayerIndex,
+            selected: new Set(this.doc.selectedLayerIndices),
+            frames: this.doc.animationEnabled ? this.doc.frames.map(f => ({
+                ...f,
+                layerData: f.layerData ? f.layerData.map(ld => ({
+                    ...ld,
+                    data: ld.data.slice(),
+                })) : null,
+            })) : null,
+        };
     }
 
     render() {
@@ -64,14 +108,28 @@ export class LayersPanel {
             vis.textContent = layer.visible ? '👁' : '○';
             vis.addEventListener('click', (e) => {
                 e.stopPropagation();
+                const beforeStates = this.doc.layers.map(l => l.visible);
                 layer.visible = !layer.visible;
+                const afterStates = this.doc.layers.map(l => l.visible);
+                this.undoManager.pushEntry({
+                    type: 'layer-visibility',
+                    beforeStates,
+                    afterStates,
+                });
                 this.bus.emit('layer-changed');
             });
             vis.addEventListener('contextmenu', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                const beforeStates = this.doc.layers.map(l => l.visible);
                 const isSolo = this.doc.layers.every(l => l === layer ? l.visible : !l.visible);
                 for (const l of this.doc.layers) l.visible = isSolo ? true : (l === layer);
+                const afterStates = this.doc.layers.map(l => l.visible);
+                this.undoManager.pushEntry({
+                    type: 'layer-visibility',
+                    beforeStates,
+                    afterStates,
+                });
                 this.bus.emit('layer-changed');
             });
 
@@ -96,7 +154,7 @@ export class LayersPanel {
 
             name.addEventListener('dblclick', (e) => {
                 e.stopPropagation();
-                this._startRename(name, layer);
+                this._startRename(name, layer, i);
             });
 
             item.addEventListener('click', (e) => {
@@ -179,24 +237,59 @@ export class LayersPanel {
             Math.round(vw * scale) || 1, Math.round(vh * scale) || 1);
     }
 
-    _startRename(nameEl, layer) {
+    _startRename(nameEl, layer, layerIndex) {
+        const beforeName = layer.name;
         const result = prompt('Rename layer:', layer.name);
         if (result === null) return;
         const trimmed = result.trim();
-        if (!trimmed) return;
+        if (!trimmed || trimmed === beforeName) return;
         layer.name = trimmed;
+        this.undoManager.pushEntry({
+            type: 'layer-rename',
+            layerIndex,
+            beforeName,
+            afterName: trimmed,
+        });
         this.render();
     }
 
     _addLayer() {
-        this.doc.addLayer();
+        const before = this._snapshotMeta();
+        const layer = this.doc.addLayer();
+        const insertIndex = this.doc.activeLayerIndex;
+        const after = this._snapshotMeta();
+        this.undoManager.pushEntry({
+            type: 'layer-add',
+            insertIndex,
+            layer,
+            beforeActiveIndex: before.activeIndex,
+            afterActiveIndex: after.activeIndex,
+            beforeSelected: before.selected,
+            afterSelected: after.selected,
+            beforeFrames: before.frames,
+            afterFrames: after.frames,
+        });
         this.bus.emit('layer-changed');
     }
 
     _deleteLayer() {
         const layer = this.doc.layers[this.doc.activeLayerIndex];
         if (!confirm(`Delete layer "${layer.name}"?`)) return;
-        if (this.doc.removeLayer(this.doc.activeLayerIndex)) {
+        const removedIndex = this.doc.activeLayerIndex;
+        const before = this._snapshotMeta();
+        if (this.doc.removeLayer(removedIndex)) {
+            const after = this._snapshotMeta();
+            this.undoManager.pushEntry({
+                type: 'layer-delete',
+                removedIndex,
+                layer,
+                beforeActiveIndex: before.activeIndex,
+                afterActiveIndex: after.activeIndex,
+                beforeSelected: before.selected,
+                afterSelected: after.selected,
+                beforeFrames: before.frames,
+                afterFrames: after.frames,
+            });
             this.bus.emit('layer-changed');
         }
     }
@@ -205,13 +298,38 @@ export class LayersPanel {
         const from = this.doc.activeLayerIndex;
         // dir=-1 means "up" visually = higher index in array
         const to = from - dir;
+        const before = this._snapshotMeta();
         if (this.doc.moveLayer(from, to)) {
+            const after = this._snapshotMeta();
+            this.undoManager.pushEntry({
+                type: 'layer-move',
+                fromIndex: from,
+                toIndex: to,
+                beforeActiveIndex: before.activeIndex,
+                afterActiveIndex: after.activeIndex,
+                beforeSelected: before.selected,
+                afterSelected: after.selected,
+            });
             this.bus.emit('layer-changed');
         }
     }
 
     _duplicateLayer() {
-        this.doc.duplicateLayer(this.doc.activeLayerIndex);
+        const before = this._snapshotMeta();
+        const copy = this.doc.duplicateLayer(this.doc.activeLayerIndex);
+        const insertIndex = this.doc.activeLayerIndex;
+        const after = this._snapshotMeta();
+        this.undoManager.pushEntry({
+            type: 'layer-add',
+            insertIndex,
+            layer: copy,
+            beforeActiveIndex: before.activeIndex,
+            afterActiveIndex: after.activeIndex,
+            beforeSelected: before.selected,
+            afterSelected: after.selected,
+            beforeFrames: before.frames,
+            afterFrames: after.frames,
+        });
         this.bus.emit('layer-changed');
     }
 }

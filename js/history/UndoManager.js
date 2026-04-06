@@ -97,6 +97,22 @@ export class UndoManager {
         this._selectionSnapshot = null;
     }
 
+    pushEntry(entry) {
+        this.undoStack.push(entry);
+        if (this.undoStack.length > this.maxEntries) {
+            this.undoStack.shift();
+        }
+        this.redoStack = [];
+    }
+
+    _restoreLayerState(entry, side) {
+        this.doc.activeLayerIndex = entry[side + 'ActiveIndex'];
+        this.doc.selectedLayerIndices = new Set(entry[side + 'Selected']);
+        if (entry[side + 'Frames']) {
+            this.doc.frames = entry[side + 'Frames'];
+        }
+    }
+
     _restoreResize(entry, key) {
         const size = entry[key + 'DocSize'];
         const layers = entry[key + 'Layers'];
@@ -136,6 +152,59 @@ export class UndoManager {
             return;
         }
 
+        if (entry.type === 'layer-add') {
+            this.doc.layers.splice(entry.insertIndex, 1);
+            this._restoreLayerState(entry, 'before');
+            this.redoStack.push(entry);
+            this.bus.emit('layer-changed');
+            this.bus.emit('document-changed');
+            return;
+        }
+
+        if (entry.type === 'layer-delete') {
+            this.doc.layers.splice(entry.removedIndex, 0, entry.layer);
+            this._restoreLayerState(entry, 'before');
+            this.redoStack.push(entry);
+            this.bus.emit('layer-changed');
+            this.bus.emit('document-changed');
+            return;
+        }
+
+        if (entry.type === 'layer-move') {
+            const [layer] = this.doc.layers.splice(entry.toIndex, 1);
+            this.doc.layers.splice(entry.fromIndex, 0, layer);
+            this._restoreLayerState(entry, 'before');
+            this.redoStack.push(entry);
+            this.bus.emit('layer-changed');
+            this.bus.emit('document-changed');
+            return;
+        }
+
+        if (entry.type === 'layer-rename') {
+            this.doc.layers[entry.layerIndex].name = entry.beforeName;
+            this.redoStack.push(entry);
+            this.bus.emit('layer-changed');
+            return;
+        }
+
+        if (entry.type === 'layer-visibility') {
+            for (let i = 0; i < entry.beforeStates.length; i++) {
+                this.doc.layers[i].visible = entry.beforeStates[i];
+            }
+            this.redoStack.push(entry);
+            this.bus.emit('layer-changed');
+            this.bus.emit('document-changed');
+            return;
+        }
+
+        if (entry.type === 'layer-opacity') {
+            this.doc.layers[entry.layerIndex].opacity = entry.beforeOpacity;
+            this.redoStack.push(entry);
+            this.bus.emit('layer-changed');
+            this.bus.emit('document-changed');
+            return;
+        }
+
         const layer = this.doc.layers[entry.layerIndex];
         if (layer) {
             layer.restoreSnapshot(entry.beforeData, entry.beforeGeometry);
@@ -165,6 +234,59 @@ export class UndoManager {
             this._restoreResize(entry, 'after');
             this.undoStack.push(entry);
             this.bus.emit('selection-changed');
+            this.bus.emit('layer-changed');
+            this.bus.emit('document-changed');
+            return;
+        }
+
+        if (entry.type === 'layer-add') {
+            this.doc.layers.splice(entry.insertIndex, 0, entry.layer);
+            this._restoreLayerState(entry, 'after');
+            this.undoStack.push(entry);
+            this.bus.emit('layer-changed');
+            this.bus.emit('document-changed');
+            return;
+        }
+
+        if (entry.type === 'layer-delete') {
+            this.doc.layers.splice(entry.removedIndex, 1);
+            this._restoreLayerState(entry, 'after');
+            this.undoStack.push(entry);
+            this.bus.emit('layer-changed');
+            this.bus.emit('document-changed');
+            return;
+        }
+
+        if (entry.type === 'layer-move') {
+            const [layer] = this.doc.layers.splice(entry.fromIndex, 1);
+            this.doc.layers.splice(entry.toIndex, 0, layer);
+            this._restoreLayerState(entry, 'after');
+            this.undoStack.push(entry);
+            this.bus.emit('layer-changed');
+            this.bus.emit('document-changed');
+            return;
+        }
+
+        if (entry.type === 'layer-rename') {
+            this.doc.layers[entry.layerIndex].name = entry.afterName;
+            this.undoStack.push(entry);
+            this.bus.emit('layer-changed');
+            return;
+        }
+
+        if (entry.type === 'layer-visibility') {
+            for (let i = 0; i < entry.afterStates.length; i++) {
+                this.doc.layers[i].visible = entry.afterStates[i];
+            }
+            this.undoStack.push(entry);
+            this.bus.emit('layer-changed');
+            this.bus.emit('document-changed');
+            return;
+        }
+
+        if (entry.type === 'layer-opacity') {
+            this.doc.layers[entry.layerIndex].opacity = entry.afterOpacity;
+            this.undoStack.push(entry);
             this.bus.emit('layer-changed');
             this.bus.emit('document-changed');
             return;

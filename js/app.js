@@ -190,7 +190,7 @@ class App {
         // UI panels
         this.colorSelector = new ColorSelector(this.doc, this.bus);
         this.palettePanel = new PalettePanel(this.doc, this.bus, this.undoManager);
-        this.layersPanel = new LayersPanel(this.doc, this.bus);
+        this.layersPanel = new LayersPanel(this.doc, this.bus, this.undoManager);
         this.framePanel = new FramePanel(this.doc, this.bus);
 
         // Undo integration: wrap tool pointer events
@@ -700,6 +700,13 @@ class App {
                 this._openFile();
                 return;
             }
+
+            // Ctrl+Shift+E = export
+            if (e.ctrlKey && e.shiftKey && e.key === 'E') {
+                e.preventDefault();
+                this._showExportDialog();
+                return;
+            }
         });
     }
 
@@ -847,11 +854,7 @@ class App {
             '-',
             { label: 'Import as Layer...', action: () => this._importAsLayer() },
             '-',
-            { label: 'Export BMP', action: () => this._exportBMP() },
-            { label: 'Export PCX', action: () => this._exportPCX() },
-            { label: 'Export PNG', action: () => this._exportPNG() },
-            { label: 'Export GIF', action: () => this._exportGIF(), disabled: !this.doc.animationEnabled },
-            { label: 'Export SPX', action: () => this._exportSPX(), disabled: !this.doc.animationEnabled },
+            { label: 'Export as...', shortcut: 'Ctrl+Shift+E', action: () => this._showExportDialog() },
         ]);
     }
 
@@ -2239,36 +2242,18 @@ class App {
         input.click();
     }
 
-    _exportBMP() {
-        const blob = exportBMP(this.doc);
-        downloadBlob(blob, 'export.bmp');
-    }
-
-    _exportPCX() {
-        const blob = exportPCX(this.doc);
-        downloadBlob(blob, 'export.pcx');
-    }
-
-    async _exportPNG() {
-        const blob = await exportPNG(this.doc, this.canvasView.renderer);
-        downloadBlob(blob, 'export.png');
-    }
-
-    _exportGIF() {
-        if (!this.doc.animationEnabled || this.doc.frames.length === 0) return;
-        this.doc.saveCurrentFrame();
-
+    _showExportDialog() {
         const overlay = document.createElement('div');
         overlay.className = 'palette-dialog-overlay';
 
         const dialog = document.createElement('div');
         dialog.className = 'palette-dialog';
-        dialog.style.cssText = 'width:280px;max-width:90vw;';
+        dialog.style.cssText = 'width:320px;max-width:90vw;';
 
         // Header
         const header = document.createElement('div');
         header.className = 'palette-dialog-header';
-        header.innerHTML = '<span>Export GIF</span>';
+        header.innerHTML = '<span>Export as...</span>';
         const closeBtn = document.createElement('button');
         closeBtn.className = 'palette-dialog-close';
         closeBtn.textContent = '\u00D7';
@@ -2280,15 +2265,47 @@ class App {
         const body = document.createElement('div');
         body.style.cssText = 'display:flex;flex-direction:column;gap:8px;padding:8px 0;';
 
-        // Collect tag groups: { tag, indices[] }
-        const tagGroups = [];
-        const frames = this.doc.frames;
-        for (let i = 0; i < frames.length; i++) {
-            if (frames[i].tag) {
-                tagGroups.push({ tag: frames[i].tag, start: i });
-            }
+        const rowStyle = 'display:flex;align-items:center;gap:8px;';
+        const labelStyle = 'font-size:13px;color:var(--text);width:60px;';
+        const selectStyle = 'flex:1;padding:3px 6px;background:var(--bg-input);border:1px solid var(--border);color:var(--text);border-radius:3px;font-size:13px;';
+
+        // Format selector
+        const formatRow = document.createElement('div');
+        formatRow.style.cssText = rowStyle;
+        const formatLabel = document.createElement('label');
+        formatLabel.textContent = 'Format:';
+        formatLabel.style.cssText = labelStyle;
+        const formatSelect = document.createElement('select');
+        formatSelect.style.cssText = selectStyle;
+        const formats = [
+            { value: 'png', label: 'PNG' },
+            { value: 'bmp', label: 'BMP (8-bit indexed)' },
+            { value: 'pcx', label: 'PCX (8-bit indexed)' },
+        ];
+        if (this.doc.animationEnabled && this.doc.frames.length > 0) {
+            formats.push({ value: 'gif', label: 'GIF (animated)' });
+            formats.push({ value: 'spx', label: 'SPX (sprite sheet)' });
         }
-        // Compute end index for each group
+        for (const f of formats) {
+            const opt = document.createElement('option');
+            opt.value = f.value;
+            opt.textContent = f.label;
+            formatSelect.appendChild(opt);
+        }
+        formatRow.appendChild(formatLabel);
+        formatRow.appendChild(formatSelect);
+        body.appendChild(formatRow);
+
+        // ── GIF options ──────────────────────────────────────────────
+        const gifOptions = document.createElement('div');
+        gifOptions.style.cssText = 'display:none;flex-direction:column;gap:8px;';
+
+        // Collect tag groups
+        const frames = this.doc.frames || [];
+        const tagGroups = [];
+        for (let i = 0; i < frames.length; i++) {
+            if (frames[i].tag) tagGroups.push({ tag: frames[i].tag, start: i });
+        }
         for (let g = 0; g < tagGroups.length; g++) {
             const nextStart = g + 1 < tagGroups.length ? tagGroups[g + 1].start : frames.length;
             const indices = [];
@@ -2298,12 +2315,12 @@ class App {
 
         // Frames selector
         const framesRow = document.createElement('div');
-        framesRow.style.cssText = 'display:flex;align-items:center;gap:8px;';
+        framesRow.style.cssText = rowStyle;
         const framesLabel = document.createElement('label');
         framesLabel.textContent = 'Frames:';
-        framesLabel.style.cssText = 'font-size:13px;color:var(--text);width:60px;';
+        framesLabel.style.cssText = labelStyle;
         const framesSelect = document.createElement('select');
-        framesSelect.style.cssText = 'flex:1;padding:3px 6px;background:var(--bg-input);border:1px solid var(--border);color:var(--text);border-radius:3px;font-size:13px;';
+        framesSelect.style.cssText = selectStyle;
         const allOpt = document.createElement('option');
         allOpt.value = 'all';
         allOpt.textContent = `All frames (${frames.length})`;
@@ -2316,16 +2333,16 @@ class App {
         }
         framesRow.appendChild(framesLabel);
         framesRow.appendChild(framesSelect);
-        body.appendChild(framesRow);
+        gifOptions.appendChild(framesRow);
 
         // Scale
         const scaleRow = document.createElement('div');
-        scaleRow.style.cssText = 'display:flex;align-items:center;gap:8px;';
+        scaleRow.style.cssText = rowStyle;
         const scaleLabel = document.createElement('label');
         scaleLabel.textContent = 'Scale:';
-        scaleLabel.style.cssText = 'font-size:13px;color:var(--text);width:60px;';
+        scaleLabel.style.cssText = labelStyle;
         const scaleSelect = document.createElement('select');
-        scaleSelect.style.cssText = 'flex:1;padding:3px 6px;background:var(--bg-input);border:1px solid var(--border);color:var(--text);border-radius:3px;font-size:13px;';
+        scaleSelect.style.cssText = selectStyle;
         for (const s of [1, 2, 3, 4, 5, 8, 10]) {
             const opt = document.createElement('option');
             opt.value = s;
@@ -2334,16 +2351,16 @@ class App {
         }
         scaleRow.appendChild(scaleLabel);
         scaleRow.appendChild(scaleSelect);
-        body.appendChild(scaleRow);
+        gifOptions.appendChild(scaleRow);
 
         // Loop
         const loopRow = document.createElement('div');
-        loopRow.style.cssText = 'display:flex;align-items:center;gap:8px;';
+        loopRow.style.cssText = rowStyle;
         const loopLabel = document.createElement('label');
         loopLabel.textContent = 'Loop:';
-        loopLabel.style.cssText = 'font-size:13px;color:var(--text);width:60px;';
+        loopLabel.style.cssText = labelStyle;
         const loopSelect = document.createElement('select');
-        loopSelect.style.cssText = 'flex:1;padding:3px 6px;background:var(--bg-input);border:1px solid var(--border);color:var(--text);border-radius:3px;font-size:13px;';
+        loopSelect.style.cssText = selectStyle;
         for (const [val, label] of [[0, 'Infinite'], [1, 'Once'], [2, '2 times'], [3, '3 times'], [5, '5 times']]) {
             const opt = document.createElement('option');
             opt.value = val;
@@ -2352,116 +2369,58 @@ class App {
         }
         loopRow.appendChild(loopLabel);
         loopRow.appendChild(loopSelect);
-        body.appendChild(loopRow);
+        gifOptions.appendChild(loopRow);
 
-        // Info
-        const info = document.createElement('div');
-        info.style.cssText = 'font-size:11px;color:var(--text-dim);';
-        const updateInfo = () => {
+        // GIF info
+        const gifInfo = document.createElement('div');
+        gifInfo.style.cssText = 'font-size:11px;color:var(--text-dim);';
+        const updateGifInfo = () => {
             const sel = framesSelect.value;
             const count = sel === 'all' ? frames.length : tagGroups.find(g => g.tag === sel)?.indices.length || 0;
-            info.textContent = `${count} frame${count !== 1 ? 's' : ''} will be exported`;
+            gifInfo.textContent = `${count} frame${count !== 1 ? 's' : ''} will be exported`;
         };
-        updateInfo();
-        framesSelect.addEventListener('change', updateInfo);
-        body.appendChild(info);
+        updateGifInfo();
+        framesSelect.addEventListener('change', updateGifInfo);
+        gifOptions.appendChild(gifInfo);
 
-        dialog.appendChild(body);
+        body.appendChild(gifOptions);
 
-        // Footer
-        const footer = document.createElement('div');
-        footer.className = 'palette-dialog-footer';
-        footer.style.justifyContent = 'flex-end';
-        footer.style.gap = '8px';
+        // ── SPX options ──────────────────────────────────────────────
+        const spxOptions = document.createElement('div');
+        spxOptions.style.cssText = 'display:none;flex-direction:column;gap:8px;';
 
-        const cancelBtn = document.createElement('button');
-        cancelBtn.textContent = 'Cancel';
-        cancelBtn.addEventListener('click', () => overlay.remove());
-
-        const exportBtn = document.createElement('button');
-        exportBtn.textContent = 'Export';
-        exportBtn.className = 'primary';
-        exportBtn.addEventListener('click', () => {
-            const scale = parseInt(scaleSelect.value) || 1;
-            const loopCount = parseInt(loopSelect.value) || 0;
-            const sel = framesSelect.value;
-            const frameIndices = sel === 'all' ? null : tagGroups.find(g => g.tag === sel)?.indices;
-            const filename = sel === 'all' ? 'export.gif' : `${sel}.gif`;
-            overlay.remove();
-            const blob = exportGIF(this.doc, { scale, loopCount, frameIndices });
-            downloadBlob(blob, filename);
-        });
-
-        footer.appendChild(cancelBtn);
-        footer.appendChild(exportBtn);
-        dialog.appendChild(footer);
-
-        overlay.appendChild(dialog);
-        document.body.appendChild(overlay);
-
-        // Keyboard
-        dialog.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') overlay.remove();
-            if (e.key === 'Enter') exportBtn.click();
-        });
-        overlay.addEventListener('click', (e) => {
-            if (e.target === overlay) overlay.remove();
-        });
-    }
-
-    _exportSPX() {
-        if (!this.doc.animationEnabled || this.doc.frames.length === 0) return;
-
-        // Get the tab name as default sprite name
         const tab = this._tabs.find(t => t.id === this._activeTabId);
         const defaultName = tab ? tab.name.replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase() : 'sprite';
 
-        const overlay = document.createElement('div');
-        overlay.className = 'palette-dialog-overlay';
-
-        const dialog = document.createElement('div');
-        dialog.className = 'palette-dialog';
-        dialog.style.cssText = 'width:280px;max-width:90vw;';
-
-        // Header
-        const header = document.createElement('div');
-        header.className = 'palette-dialog-header';
-        header.innerHTML = '<span>Export SPX</span>';
-        const closeBtn = document.createElement('button');
-        closeBtn.className = 'palette-dialog-close';
-        closeBtn.textContent = '\u00D7';
-        closeBtn.addEventListener('click', () => overlay.remove());
-        header.appendChild(closeBtn);
-        dialog.appendChild(header);
-
-        // Body
-        const body = document.createElement('div');
-        body.style.cssText = 'display:flex;flex-direction:column;gap:8px;padding:8px 0;';
-
-        // Name
         const nameRow = document.createElement('div');
-        nameRow.style.cssText = 'display:flex;align-items:center;gap:8px;';
+        nameRow.style.cssText = rowStyle;
         const nameLabel = document.createElement('label');
         nameLabel.textContent = 'Name:';
-        nameLabel.style.cssText = 'font-size:13px;color:var(--text);width:60px;';
+        nameLabel.style.cssText = labelStyle;
         const nameInput = document.createElement('input');
         nameInput.type = 'text';
         nameInput.value = defaultName;
-        nameInput.style.cssText = 'flex:1;padding:3px 6px;background:var(--bg-input);border:1px solid var(--border);color:var(--text);border-radius:3px;font-size:13px;';
+        nameInput.style.cssText = selectStyle;
         nameRow.appendChild(nameLabel);
         nameRow.appendChild(nameInput);
-        body.appendChild(nameRow);
+        spxOptions.appendChild(nameRow);
 
-        // Info
-        const info = document.createElement('div');
-        info.style.cssText = 'font-size:11px;color:var(--text-dim);';
-        const tagCount = this.doc.frames.filter(f => f.tag).length;
+        const spxInfo = document.createElement('div');
+        spxInfo.style.cssText = 'font-size:11px;color:var(--text-dim);';
         const groups = new Set();
-        for (const f of this.doc.frames) { if (f.tag) groups.add(f.tag); }
-        info.textContent = `${this.doc.frames.length} frames, ${groups.size || 1} sprite${groups.size > 1 ? 's' : ''} \u2022 ${this.doc.width}\u00D7${this.doc.height}px`;
-        body.appendChild(info);
+        for (const f of frames) { if (f.tag) groups.add(f.tag); }
+        spxInfo.textContent = `${frames.length} frames, ${groups.size || 1} sprite${groups.size > 1 ? 's' : ''} \u2022 ${this.doc.width}\u00D7${this.doc.height}px`;
+        spxOptions.appendChild(spxInfo);
+
+        body.appendChild(spxOptions);
 
         dialog.appendChild(body);
+
+        // Format change handler
+        formatSelect.addEventListener('change', () => {
+            gifOptions.style.display = formatSelect.value === 'gif' ? 'flex' : 'none';
+            spxOptions.style.display = formatSelect.value === 'spx' ? 'flex' : 'none';
+        });
 
         // Footer
         const footer = document.createElement('div');
@@ -2477,10 +2436,43 @@ class App {
         exportBtn.textContent = 'Export';
         exportBtn.className = 'primary';
         exportBtn.addEventListener('click', async () => {
-            const spriteName = nameInput.value.trim() || defaultName;
+            const format = formatSelect.value;
             overlay.remove();
-            const zipBlob = await exportSPXZip(this.doc, { name: spriteName });
-            downloadBlob(zipBlob, spriteName + '.zip');
+            switch (format) {
+                case 'bmp': {
+                    const blob = exportBMP(this.doc);
+                    downloadBlob(blob, 'export.bmp');
+                    break;
+                }
+                case 'pcx': {
+                    const blob = exportPCX(this.doc);
+                    downloadBlob(blob, 'export.pcx');
+                    break;
+                }
+                case 'png': {
+                    const blob = await exportPNG(this.doc, this.canvasView.renderer);
+                    downloadBlob(blob, 'export.png');
+                    break;
+                }
+                case 'gif': {
+                    this.doc.saveCurrentFrame();
+                    const scale = parseInt(scaleSelect.value) || 1;
+                    const loopCount = parseInt(loopSelect.value) || 0;
+                    const sel = framesSelect.value;
+                    const frameIndices = sel === 'all' ? null : tagGroups.find(g => g.tag === sel)?.indices;
+                    const filename = sel === 'all' ? 'export.gif' : `${sel}.gif`;
+                    const blob = exportGIF(this.doc, { scale, loopCount, frameIndices });
+                    downloadBlob(blob, filename);
+                    break;
+                }
+                case 'spx': {
+                    this.doc.saveCurrentFrame();
+                    const spriteName = nameInput.value.trim() || defaultName;
+                    const zipBlob = await exportSPXZip(this.doc, { name: spriteName });
+                    downloadBlob(zipBlob, spriteName + '.zip');
+                    break;
+                }
+            }
         });
 
         footer.appendChild(cancelBtn);
@@ -2490,9 +2482,7 @@ class App {
         overlay.appendChild(dialog);
         document.body.appendChild(overlay);
 
-        nameInput.focus();
-        nameInput.select();
-
+        // Keyboard
         dialog.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') overlay.remove();
             if (e.key === 'Enter') exportBtn.click();

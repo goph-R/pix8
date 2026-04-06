@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.1.0] - 2026-04-06
+
+### Added
+- **Undoable layer operations** -- add, delete, duplicate, move, rename, visibility toggle, and opacity changes are now part of the undo/redo history (Ctrl+Z / Ctrl+Shift+Z)
+- **Unified export dialog** -- single "Export as..." menu item (Ctrl+Shift+E) replaces five separate export entries; format selector with inline GIF/SPX options
+
+### Removed
+- Individual Export BMP/PCX/PNG/GIF/SPX menu items (replaced by unified dialog)
+
 ## [1.0.0] - 2026-04-06
 
 ### Added
