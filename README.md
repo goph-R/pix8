@@ -91,7 +91,7 @@ npm start        # serve (in another terminal)
 | X | Swap FG/BG colors |
 | 1 | Reset brush to default (1px) |
 | +/- | Zoom in/out |
-| Space + drag | Pan canvas |
+| Space | Play Tag / Stop (animation) |
 | Middle mouse drag | Pan canvas |
 | Enter | Commit free transform |
 | Escape | Cancel / deselect / commit floating selection |

@@ -209,6 +209,9 @@ class App {
         // Re-render on palette/layer changes
         this.bus.on('palette-changed', () => this.canvasView.render());
         this.bus.on('layer-changed', () => this.canvasView.render());
+        this.bus.on('space-tap', () => {
+            if (this.doc.animationEnabled) this.framePanel.togglePlayTag();
+        });
         this.bus.on('document-changed', () => this.canvasView.render());
 
         // Selection events
@@ -1470,6 +1473,7 @@ class App {
         layer.width = lw;
         layer.height = lh;
         this.undoManager.endOperation();
+        this._showToast('Trimmed');
         this.bus.emit('layer-changed');
         this.bus.emit('document-changed');
     }

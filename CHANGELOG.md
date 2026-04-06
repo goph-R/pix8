@@ -7,6 +7,7 @@
 - **"No content to copy" status** -- status bar message when Ctrl+C copies only transparent pixels
 - **Per-frame layer merge** -- Merge Selected now composites layers independently per frame instead of only the current frame
 - **Toast notifications** -- slide-down toast from top center replaces browser alert() dialogs and status bar messages; 1.5s for info, 3s for errors
+- **Space shortcut** -- tap Space to toggle Play Tag / Stop; hold Space + move mouse to pan canvas
 
 ### Fixed
 - Pasting (Ctrl+V) no longer duplicates content across all animation frames; new layers get transparent data on other frames

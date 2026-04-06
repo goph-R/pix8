@@ -411,6 +411,14 @@ export class FramePanel {
         return indices;
     }
 
+    togglePlayTag() {
+        if (this._playing) {
+            this._stop();
+        } else {
+            this._playTag();
+        }
+    }
+
     _setPlayingState(playing) {
         this._playing = playing;
         this._playBtn.disabled = playing;

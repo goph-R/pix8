@@ -57,6 +57,7 @@ export class CanvasView {
         this._panStartPanX = 0;
         this._panStartPanY = 0;
         this._spaceDown = false;
+        this._spacePanned = false;
         this._pointerDown = false;
         this._lastDocX = 0;
         this._lastDocY = 0;
@@ -148,6 +149,11 @@ export class CanvasView {
             const tag = e.target.tagName;
             if (e.code === 'Space' && !e.repeat && tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT') {
                 this._spaceDown = true;
+                this._spacePanned = false;
+                this._panStartX = this._lastScreenX;
+                this._panStartY = this._lastScreenY;
+                this._panStartPanX = this.panX;
+                this._panStartPanY = this.panY;
                 this.container.style.cursor = 'grab';
                 e.preventDefault();
             }
@@ -157,9 +163,12 @@ export class CanvasView {
         });
 
         document.addEventListener('keyup', (e) => {
-            if (e.code === 'Space') {
+            if (e.code === 'Space' && this._spaceDown) {
                 this._spaceDown = false;
                 this._updateCursor();
+                if (!this._spacePanned) {
+                    this.bus.emit('space-tap');
+                }
             }
             if (e.key === 'Shift' && this._lastMoveEvent) {
                 this._replayLastMove(e);
@@ -212,8 +221,8 @@ export class CanvasView {
     }
 
     _onPointerDown(e) {
-        // Middle mouse button or space+left click = pan
-        if (e.button === 1 || (e.button === 0 && this._spaceDown)) {
+        // Middle mouse button = pan
+        if (e.button === 1) {
             this._isPanning = true;
             this._panStartX = e.clientX;
             this._panStartY = e.clientY;
@@ -260,11 +269,27 @@ export class CanvasView {
             return;
         }
 
+        // Space + mouse move (no button) = pan
+        if (this._spaceDown && !this._pointerDown) {
+            const dx = this._lastScreenX - this._panStartX;
+            const dy = this._lastScreenY - this._panStartY;
+            if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
+                this._spacePanned = true;
+                this.container.style.cursor = 'grabbing';
+            }
+            if (this._spacePanned) {
+                this.panX = this._panStartPanX + dx;
+                this.panY = this._panStartPanY + dy;
+                this.render();
+            }
+            return;
+        }
+
         if (this._pointerDown && this._activeTool) {
             this._lastMoveEvent = e;
             this._activeTool.onPointerMove(pos.x, pos.y, e);
             this.render();
-        } else if (!this._spaceDown && this._activeTool) {
+        } else if (this._activeTool) {
             if (this._activeTool.onHover) {
                 this._activeTool.onHover(pos.x, pos.y);
             }
@@ -283,7 +308,7 @@ export class CanvasView {
     _onPointerUp(e) {
         if (this._isPanning) {
             this._isPanning = false;
-            this.container.style.cursor = this._spaceDown ? 'grab' : (this._activeTool ? this._activeTool.getCursor() : 'crosshair');
+            this.container.style.cursor = this._activeTool ? this._activeTool.getCursor() : 'crosshair';
             return;
         }
 
