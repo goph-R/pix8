@@ -34,7 +34,7 @@ Try it online: https://pix8.dynart.net
 - **GrafX2-style palette editor** -- range selection, HSV color picker (saturation/value square + hue strip), RGB sliders with hex input, batch operations (Swap, X-Swap, Copy, Flip, X-Flip, Neg, Gray, Spread, Merge, Sort, Reduce, Zap Unused, Used highlight), 6-bit VGA mode, palette Load/Save (PAL/BMP/PCX)
 
 <div style="text-align: center">
-  <img src="/DynartInteractive/Pix8/raw/main/palette-editor-v1.3.0.png" alt="Palette Editor Screenshot">
+  <img src="https://github.com/DynartInteractive/Pix8/raw/main/palette-editor-v1.3.0.png" alt="Palette Editor Screenshot">
 </div>
 
 - **Toast notifications** -- non-blocking slide-down messages replace browser alert dialogs
