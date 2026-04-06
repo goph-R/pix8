@@ -45,7 +45,7 @@ export class PaletteEditDialog {
 
     open() {
         this._originalPalette = this.doc.palette.export();
-        this._originalLayers = this.doc.layers.map(l => l.clone());
+        this._originalLayers = this.doc.layers.map(l => l.clone(true));
         this._buildDOM();
         document.body.appendChild(this._overlay);
     }
@@ -1254,7 +1254,7 @@ export class PaletteEditDialog {
     _ok() {
         // Push palette change to document undo history
         const afterPalette = this.doc.palette.export();
-        const afterLayers = this.doc.layers.map(l => l.clone());
+        const afterLayers = this.doc.layers.map(l => l.clone(true));
         // Check if anything actually changed
         let changed = false;
         for (let i = 0; i < 256; i++) {

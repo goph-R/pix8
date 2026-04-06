@@ -44,6 +44,22 @@ export class ImageDocument {
         this.activeLayerIndex = insertIdx;
         this.selectedLayerIndices.clear();
         this.selectedLayerIndices.add(insertIdx);
+        // Insert transparent entry for the new layer in all frames
+        if (this.animationEnabled) {
+            for (const frame of this.frames) {
+                if (frame.layerData) {
+                    frame.layerData.splice(insertIdx, 0, {
+                        data: new Uint16Array(layer.width * layer.height).fill(TRANSPARENT),
+                        opacity: 1.0,
+                        textData: null,
+                        offsetX: layer.offsetX,
+                        offsetY: layer.offsetY,
+                        width: layer.width,
+                        height: layer.height,
+                    });
+                }
+            }
+        }
         return layer;
     }
 
@@ -61,6 +77,12 @@ export class ImageDocument {
         }
         shifted.add(this.activeLayerIndex);
         this.selectedLayerIndices = shifted;
+        // Remove layer entry from all frames
+        if (this.animationEnabled) {
+            for (const frame of this.frames) {
+                if (frame.layerData) frame.layerData.splice(index, 1);
+            }
+        }
         return true;
     }
 
@@ -71,6 +93,15 @@ export class ImageDocument {
         this.activeLayerIndex = to;
         this.selectedLayerIndices.clear();
         this.selectedLayerIndices.add(to);
+        // Reorder layer entry in all frames
+        if (this.animationEnabled) {
+            for (const frame of this.frames) {
+                if (frame.layerData) {
+                    const [entry] = frame.layerData.splice(from, 1);
+                    frame.layerData.splice(to, 0, entry);
+                }
+            }
+        }
         return true;
     }
 
@@ -81,6 +112,22 @@ export class ImageDocument {
         this.activeLayerIndex = index + 1;
         this.selectedLayerIndices.clear();
         this.selectedLayerIndices.add(index + 1);
+        // Duplicate layer entry in all frames (as transparent)
+        if (this.animationEnabled) {
+            for (const frame of this.frames) {
+                if (frame.layerData) {
+                    frame.layerData.splice(index + 1, 0, {
+                        data: new Uint16Array(copy.width * copy.height).fill(TRANSPARENT),
+                        opacity: copy.opacity,
+                        textData: copy.textData ? { ...copy.textData } : null,
+                        offsetX: copy.offsetX,
+                        offsetY: copy.offsetY,
+                        width: copy.width,
+                        height: copy.height,
+                    });
+                }
+            }
+        }
         return copy;
     }
 

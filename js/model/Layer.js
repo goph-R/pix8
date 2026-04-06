@@ -146,8 +146,8 @@ export class Layer {
         this.data.fill(TRANSPARENT);
     }
 
-    clone() {
-        const copy = new Layer(this.name + ' copy', this.width, this.height);
+    clone(preserveName = false) {
+        const copy = new Layer(preserveName ? this.name : this.name + ' copy', this.width, this.height);
         copy.offsetX = this.offsetX;
         copy.offsetY = this.offsetY;
         copy.visible = this.visible;

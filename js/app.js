@@ -474,6 +474,16 @@ class App {
 
     // ── Tool Hints ──────────────────────────────────────────────────
 
+    _showStatus(msg) {
+        const el = document.getElementById('status-hint');
+        el.textContent = msg;
+        clearTimeout(this._statusTimer);
+        this._statusTimer = setTimeout(() => {
+            const tool = this.canvasView.activeTool;
+            el.textContent = tool ? this._getToolHint(tool.name) : '';
+        }, 2000);
+    }
+
     _getToolHint(name) {
         const hints = {
             'Move':            'Drag to move layer',
@@ -1017,6 +1027,10 @@ class App {
         if (!sel.active) return;
         const copied = sel.copyPixels(this.doc.getActiveLayer());
         if (copied) {
+            if (copied.data.every(v => v === TRANSPARENT)) {
+                this._showStatus('No content to copy');
+                return;
+            }
             copied.sourcePalette = this.doc.palette.export();
             this._clipboard = copied;
         }
@@ -1077,15 +1091,16 @@ class App {
             }
         }
 
-        const newLayer = new Layer('Pasted', cb.width, cb.height);
+        // Save current frame before modifying layers
+        if (this.doc.animationEnabled) this.doc.saveCurrentFrame();
+        const newLayer = this.doc.addLayer('Pasted');
         newLayer.data.set(data);
         newLayer.offsetX = originX;
         newLayer.offsetY = originY;
-        const insertIdx = this.doc.activeLayerIndex + 1;
-        this.doc.layers.splice(insertIdx, 0, newLayer);
-        this.doc.activeLayerIndex = insertIdx;
-        this.doc.selectedLayerIndices.clear();
-        this.doc.selectedLayerIndices.add(insertIdx);
+        newLayer.width = cb.width;
+        newLayer.height = cb.height;
+        // Update current frame with the pasted content
+        if (this.doc.animationEnabled) this.doc.saveCurrentFrame();
         this.bus.emit('layer-changed');
         this.bus.emit('document-changed');
     }
@@ -1121,15 +1136,14 @@ class App {
 
                 this._showPasteDitherDialog(imageData.data, canvas.width, canvas.height, (indices, w, h) => {
                     // Create a new layer with the pasted data
-                    const newLayer = new Layer('Pasted', w, h);
+                    if (this.doc.animationEnabled) this.doc.saveCurrentFrame();
+                    const newLayer = this.doc.addLayer('Pasted');
                     newLayer.data.set(indices);
                     newLayer.offsetX = Math.round((this.doc.width - w) / 2);
                     newLayer.offsetY = Math.round((this.doc.height - h) / 2);
-                    const insertIdx = this.doc.activeLayerIndex + 1;
-                    this.doc.layers.splice(insertIdx, 0, newLayer);
-                    this.doc.activeLayerIndex = insertIdx;
-                    this.doc.selectedLayerIndices.clear();
-                    this.doc.selectedLayerIndices.add(insertIdx);
+                    newLayer.width = w;
+                    newLayer.height = h;
+                    if (this.doc.animationEnabled) this.doc.saveCurrentFrame();
                     this.bus.emit('layer-changed');
                     this.bus.emit('document-changed');
                 });
@@ -1402,6 +1416,7 @@ class App {
         const isTextLayer = activeLayer && activeLayer.type === 'text';
         this._showDropdown(anchor, 'layer', [
             { label: 'Convert to Bitmap', disabled: !isTextLayer, action: () => this._convertTextToBitmap() },
+            { label: 'Trim to Content', disabled: isTextLayer, action: () => this._trimLayerToContent() },
             '-',
             { label: 'Merge Selected', disabled: !multiSelected, action: () => this._mergeSelectedLayers() },
             { label: 'Merge All', action: () => {
@@ -1418,45 +1433,145 @@ class App {
         ]);
     }
 
+    _trimLayerToContent() {
+        const layer = this.doc.getActiveLayer();
+        if (!layer || layer.type === 'text') return;
+        const bounds = layer.getContentBounds();
+        if (!bounds) {
+            this._showStatus('Layer is empty');
+            return;
+        }
+        // Convert doc-space bounds to layer-local
+        const lx = bounds.left - layer.offsetX;
+        const ly = bounds.top - layer.offsetY;
+        const lw = bounds.right - bounds.left;
+        const lh = bounds.bottom - bounds.top;
+        // Skip if already trimmed
+        if (lx === 0 && ly === 0 && lw === layer.width && lh === layer.height) {
+            this._showStatus('Layer already trimmed');
+            return;
+        }
+        this.undoManager.beginOperation();
+        const newData = new Uint16Array(lw * lh);
+        for (let y = 0; y < lh; y++) {
+            for (let x = 0; x < lw; x++) {
+                newData[y * lw + x] = layer.data[(ly + y) * layer.width + (lx + x)];
+            }
+        }
+        layer.data = newData;
+        layer.offsetX = bounds.left;
+        layer.offsetY = bounds.top;
+        layer.width = lw;
+        layer.height = lh;
+        this.undoManager.endOperation();
+        this.bus.emit('layer-changed');
+        this.bus.emit('document-changed');
+    }
+
     _mergeSelectedLayers() {
         const doc = this.doc;
         const sel = doc.selectedLayerIndices;
         if (sel.size < 2) return;
 
+        // Snapshot before state for undo
+        if (doc.animationEnabled) doc.saveCurrentFrame();
+        const beforeLayers = doc.layers.map(l => l.clone(true));
+        const beforeActiveIndex = doc.activeLayerIndex;
+        const beforeSelected = new Set(sel);
+        const beforeFrames = doc.animationEnabled ? doc.frames.map(f => ({
+            ...f,
+            layerData: f.layerData ? f.layerData.map(ld => ({ ...ld, data: ld.data.slice() })) : null,
+        })) : null;
+
         const indices = [...sel].sort((a, b) => a - b);
 
-        this.undoManager.beginOperation();
-
-        // Composite selected layers bottom-to-top into a new layer
-        const merged = new Layer('Merged', doc.width, doc.height);
-        for (const idx of indices) {
-            const layer = doc.layers[idx];
-            if (!layer.visible) continue;
-            const lx0 = Math.max(0, layer.offsetX);
-            const ly0 = Math.max(0, layer.offsetY);
-            const lx1 = Math.min(doc.width, layer.offsetX + layer.width);
-            const ly1 = Math.min(doc.height, layer.offsetY + layer.height);
-            for (let dy = ly0; dy < ly1; dy++) {
-                for (let dx = lx0; dx < lx1; dx++) {
-                    const val = layer.data[(dy - layer.offsetY) * layer.width + (dx - layer.offsetX)];
-                    if (val !== TRANSPARENT) {
-                        merged.data[dy * doc.width + dx] = val;
+        // Helper: composite layer data entries into a single pixel buffer
+        const compositeLayers = (layerEntries) => {
+            const data = new Uint16Array(doc.width * doc.height).fill(TRANSPARENT);
+            for (const ld of layerEntries) {
+                if (!ld) continue;
+                const lx0 = Math.max(0, ld.offsetX);
+                const ly0 = Math.max(0, ld.offsetY);
+                const lx1 = Math.min(doc.width, ld.offsetX + ld.width);
+                const ly1 = Math.min(doc.height, ld.offsetY + ld.height);
+                for (let dy = ly0; dy < ly1; dy++) {
+                    for (let dx = lx0; dx < lx1; dx++) {
+                        const val = ld.data[(dy - ld.offsetY) * ld.width + (dx - ld.offsetX)];
+                        if (val !== TRANSPARENT) {
+                            data[dy * doc.width + dx] = val;
+                        }
                     }
                 }
             }
+            return data;
+        };
+
+        // Composite current (live) layers for the merged result
+        const merged = new Layer('Merged', doc.width, doc.height);
+        const liveEntries = indices.filter(i => doc.layers[i].visible).map(i => doc.layers[i]);
+        merged.data = compositeLayers(liveEntries);
+
+        // For animation: composite per-frame before removing layers
+        let perFrameMerged = null;
+        if (doc.animationEnabled) {
+            perFrameMerged = doc.frames.map(frame => {
+                if (!frame.layerData) return null;
+                const entries = indices.filter(i => doc.layers[i].visible).map(i => frame.layerData[i]);
+                return compositeLayers(entries);
+            });
         }
 
         // Remove selected layers (from highest index first) and insert merged
         const lowestIdx = indices[0];
         for (let i = indices.length - 1; i >= 0; i--) {
             doc.layers.splice(indices[i], 1);
+            if (doc.animationEnabled) {
+                for (const frame of doc.frames) {
+                    if (frame.layerData) frame.layerData.splice(indices[i], 1);
+                }
+            }
         }
         doc.layers.splice(lowestIdx, 0, merged);
+        if (doc.animationEnabled) {
+            for (let fi = 0; fi < doc.frames.length; fi++) {
+                const frame = doc.frames[fi];
+                if (frame.layerData) {
+                    frame.layerData.splice(lowestIdx, 0, {
+                        data: perFrameMerged[fi] || new Uint16Array(doc.width * doc.height).fill(TRANSPARENT),
+                        opacity: 1.0,
+                        textData: null,
+                        offsetX: 0,
+                        offsetY: 0,
+                        width: doc.width,
+                        height: doc.height,
+                    });
+                }
+            }
+            doc.saveCurrentFrame();
+        }
         doc.activeLayerIndex = lowestIdx;
         sel.clear();
         sel.add(lowestIdx);
 
-        this.undoManager.endOperation();
+        // Snapshot after state and push undo entry
+        const afterLayers = doc.layers.map(l => l.clone(true));
+        const afterFrames = doc.animationEnabled ? doc.frames.map(f => ({
+            ...f,
+            layerData: f.layerData ? f.layerData.map(ld => ({ ...ld, data: ld.data.slice() })) : null,
+        })) : null;
+
+        this.undoManager.pushEntry({
+            type: 'merge-layers',
+            beforeLayers,
+            afterLayers,
+            beforeActiveIndex,
+            afterActiveIndex: lowestIdx,
+            beforeSelected,
+            afterSelected: new Set([lowestIdx]),
+            beforeFrames,
+            afterFrames,
+        });
+
         this.bus.emit('layer-changed');
         this.bus.emit('document-changed');
     }
@@ -1625,14 +1740,13 @@ class App {
                 colorIndex: selectedColorIndex,
             };
             if (opts.isNew) {
-                const layer = Layer.createText('Text: ' + text.split('\n')[0].substring(0, 20), textData, this.doc.width, this.doc.height);
+                if (this.doc.animationEnabled) this.doc.saveCurrentFrame();
+                const layer = this.doc.addLayer('Text: ' + text.split('\n')[0].substring(0, 20));
+                layer.type = 'text';
+                layer.textData = { ...textData };
                 layer.offsetX = opts.x || 0;
                 layer.offsetY = opts.y || 0;
-                const insertIdx = this.doc.activeLayerIndex + 1;
-                this.doc.layers.splice(insertIdx, 0, layer);
-                this.doc.activeLayerIndex = insertIdx;
-                this.doc.selectedLayerIndices.clear();
-                this.doc.selectedLayerIndices.add(insertIdx);
+                if (this.doc.animationEnabled) this.doc.saveCurrentFrame();
             } else {
                 opts.layer.textData = textData;
                 opts.layer.name = 'Text: ' + text.split('\n')[0].substring(0, 20);
@@ -2348,13 +2462,16 @@ class App {
         input.addEventListener('change', () => {
             if (!input.files[0]) return;
             this._parseImageFile(input.files[0], (tempDoc, file) => {
+                if (this.doc.animationEnabled) this.doc.saveCurrentFrame();
                 const importedLayer = tempDoc.getActiveLayer();
-                importedLayer.name = file.name.replace(/\.[^.]+$/, '');
-                const insertIdx = this.doc.activeLayerIndex + 1;
-                this.doc.layers.splice(insertIdx, 0, importedLayer);
-                this.doc.activeLayerIndex = insertIdx;
-                this.doc.selectedLayerIndices.clear();
-                this.doc.selectedLayerIndices.add(insertIdx);
+                const layerName = file.name.replace(/\.[^.]+$/, '');
+                const newLayer = this.doc.addLayer(layerName);
+                newLayer.data = importedLayer.data;
+                newLayer.width = importedLayer.width;
+                newLayer.height = importedLayer.height;
+                newLayer.offsetX = importedLayer.offsetX;
+                newLayer.offsetY = importedLayer.offsetY;
+                if (this.doc.animationEnabled) this.doc.saveCurrentFrame();
                 this.bus.emit('layer-changed');
                 this.bus.emit('document-changed');
             });

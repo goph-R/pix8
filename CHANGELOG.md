@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.3.0] - 2026-04-06
+
+### Added
+- **Trim to Content** -- Layer menu item that crops the active layer to its non-transparent bounding box, reducing file size
+- **"No content to copy" status** -- status bar message when Ctrl+C copies only transparent pixels
+- **Per-frame layer merge** -- Merge Selected now composites layers independently per frame instead of only the current frame
+- **Status message system** -- temporary messages in the status bar that auto-restore the tool hint
+
+### Fixed
+- Pasting (Ctrl+V) no longer duplicates content across all animation frames; new layers get transparent data on other frames
+- Layer operations (add, delete, duplicate, move, merge) now properly sync frame data in animated documents
+- System clipboard paste, text layer creation, and Import as Layer also sync frame data correctly
+- Merge layers undo no longer appends " copy" to layer names on each undo
+- Frame thumbnails now fully refresh after merge undo/redo
+- Merge All no longer destroys animation frame data
+- Animation panel no longer shifts down when adding layers
+
 ## [1.2.1] - 2026-04-06
 
 ### Fixed

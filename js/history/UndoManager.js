@@ -152,6 +152,24 @@ export class UndoManager {
             return;
         }
 
+        if (entry.type === 'merge-layers') {
+            this.doc.layers = entry.beforeLayers.map(l => l.clone(true));
+            this.doc.activeLayerIndex = entry.beforeActiveIndex;
+            this.doc.selectedLayerIndices = new Set(entry.beforeSelected);
+            if (entry.beforeFrames) {
+                this.doc.frames = entry.beforeFrames.map(f => ({
+                    ...f,
+                    layerData: f.layerData ? f.layerData.map(ld => ({ ...ld, data: ld.data.slice() })) : null,
+                }));
+                this.doc.loadFrame(this.doc.activeFrameIndex);
+            }
+            this.redoStack.push(entry);
+            this.bus.emit('frame-changed');
+            this.bus.emit('layer-changed');
+            this.bus.emit('document-changed');
+            return;
+        }
+
         if (entry.type === 'layer-add') {
             this.doc.layers.splice(entry.insertIndex, 1);
             this._restoreLayerState(entry, 'before');
@@ -234,6 +252,24 @@ export class UndoManager {
             this._restoreResize(entry, 'after');
             this.undoStack.push(entry);
             this.bus.emit('selection-changed');
+            this.bus.emit('layer-changed');
+            this.bus.emit('document-changed');
+            return;
+        }
+
+        if (entry.type === 'merge-layers') {
+            this.doc.layers = entry.afterLayers.map(l => l.clone(true));
+            this.doc.activeLayerIndex = entry.afterActiveIndex;
+            this.doc.selectedLayerIndices = new Set(entry.afterSelected);
+            if (entry.afterFrames) {
+                this.doc.frames = entry.afterFrames.map(f => ({
+                    ...f,
+                    layerData: f.layerData ? f.layerData.map(ld => ({ ...ld, data: ld.data.slice() })) : null,
+                }));
+                this.doc.loadFrame(this.doc.activeFrameIndex);
+            }
+            this.undoStack.push(entry);
+            this.bus.emit('frame-changed');
             this.bus.emit('layer-changed');
             this.bus.emit('document-changed');
             return;
