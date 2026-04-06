@@ -1,11 +1,100 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="#000" stroke="#000" stroke-width="1.5" stroke-dasharray="2,2">
-  <rect x="3" y="3" width="14" height="14" fill="none"/>
-  <rect x="1" y="1" width="3" height="3" stroke="none"/>
-  <rect x="8" y="1" width="3" height="3" stroke="none"/>
-  <rect x="16" y="1" width="3" height="3" stroke="none"/>
-  <rect x="16" y="8" width="3" height="3" stroke="none"/>
-  <rect x="16" y="16" width="3" height="3" stroke="none"/>
-  <rect x="8" y="16" width="3" height="3" stroke="none"/>
-  <rect x="1" y="16" width="3" height="3" stroke="none"/>
-  <rect x="1" y="8" width="3" height="3" stroke="none"/>
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   viewBox="0 0 20 20"
+   fill="#000"
+   stroke="#000"
+   stroke-width="1.5"
+   stroke-dasharray="2,2"
+   version="1.1"
+   id="svg9"
+   sodipodi:docname="icon-freetransform.svg"
+   inkscape:version="1.4.3 (0d15f75042, 2025-12-25)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs9" />
+  <sodipodi:namedview
+     id="namedview9"
+     pagecolor="#505050"
+     bordercolor="#eeeeee"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#505050"
+     inkscape:zoom="29.15"
+     inkscape:cx="9.9828473"
+     inkscape:cy="10"
+     inkscape:window-width="1536"
+     inkscape:window-height="792"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg9" />
+  <rect
+     x="3.0686107"
+     y="3"
+     width="14"
+     height="14"
+     fill="none"
+     id="rect1"
+     style="stroke-width:0.6;stroke-dasharray:0.66000003,0.66000003;stroke-dashoffset:0;paint-order:normal" />
+  <rect
+     x="1"
+     y="1"
+     width="3"
+     height="3"
+     stroke="none"
+     id="rect2" />
+  <rect
+     x="8.411664"
+     y="1"
+     width="3"
+     height="3"
+     stroke="none"
+     id="rect3" />
+  <rect
+     x="16"
+     y="1"
+     width="3"
+     height="3"
+     stroke="none"
+     id="rect4" />
+  <rect
+     x="16"
+     y="8.411664"
+     width="3"
+     height="3"
+     stroke="none"
+     id="rect5" />
+  <rect
+     x="16"
+     y="16"
+     width="3"
+     height="3"
+     stroke="none"
+     id="rect6" />
+  <rect
+     x="8.411664"
+     y="16"
+     width="3"
+     height="3"
+     stroke="none"
+     id="rect7" />
+  <rect
+     x="1"
+     y="16"
+     width="3"
+     height="3"
+     stroke="none"
+     id="rect8" />
+  <rect
+     x="1"
+     y="8.411664"
+     width="3"
+     height="3"
+     stroke="none"
+     id="rect9" />
 </svg>

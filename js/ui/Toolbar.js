@@ -35,7 +35,6 @@ export class Toolbar {
         const layout = [
             'Move', 'Brush', 'Eraser', 'Fill', 'Color Picker',
             'sep',
-            'Line',
             { tools: ['Rectangle', 'Filled Rect', 'Ellipse', 'Filled Ellipse'], label: 'Shapes' },
             'sep',
             { tools: ['Rect Select', 'Ellipse Select'], label: 'Select' },

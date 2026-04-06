@@ -1,6 +1,50 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="#000" stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-  <path d="M4 8h9v7a2 2 0 01-2 2H6a2 2 0 01-2-2V8z"/>
-  <path d="M3 8h11l-1-3H4L3 8z"/>
-  <path d="M7 5V3"/>
-  <path d="M15 10c1 2 2 3 2 4.5a2 2 0 01-4 0c0-1.5 1-2.5 2-4.5z"/>
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   viewBox="0 0 20 20"
+   fill="#000"
+   stroke="#000"
+   stroke-width="1.5"
+   stroke-linecap="round"
+   stroke-linejoin="round"
+   version="1.1"
+   id="svg4"
+   sodipodi:docname="icon-fill.svg"
+   inkscape:version="1.4.3 (0d15f75042, 2025-12-25)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs4" />
+  <sodipodi:namedview
+     id="namedview4"
+     pagecolor="#505050"
+     bordercolor="#eeeeee"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#505050"
+     showgrid="false"
+     inkscape:zoom="20.612163"
+     inkscape:cx="5.7732904"
+     inkscape:cy="9.4361763"
+     inkscape:window-width="1536"
+     inkscape:window-height="792"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg4" />
+  <path
+     d="M 7.0406758,11.354004 13.010541,5.3658379 17.66797,10.009097 a 1.8790253,1.8790253 0 0 1 0.0041,2.657338 l -3.316584,3.326767 a 1.8790253,1.8790253 0 0 1 -2.657313,0.004 z"
+     id="path1"
+     style="stroke-width:1.40927" />
+  <path
+     d="M 12.041943,2.3807765 4.0754178,10.371723 6.7602017,11.599836 13.278268,5.0617873 Z"
+     id="path2"
+     style="stroke-width:1.4594" />
+  <path
+     d="m 2.9089997,12.696773 c 0.6725197,1.345039 1.3450393,2.017559 1.3450393,3.026338 a 1.3450392,1.3450392 0 0 1 -2.6900785,0 c 0,-1.008779 0.6725196,-1.681299 1.3450392,-3.026338 z"
+     id="path4"
+     style="stroke-width:1.00878" />
 </svg>

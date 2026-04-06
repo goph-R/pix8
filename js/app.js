@@ -15,7 +15,6 @@ import { FramePanel } from './ui/FramePanel.js';
 import { UndoManager } from './history/UndoManager.js';
 
 import { BrushTool } from './tools/BrushTool.js';
-import { LineTool } from './tools/LineTool.js';
 import { RectTool } from './tools/RectTool.js';
 import { FilledRectTool } from './tools/FilledRectTool.js';
 import { EllipseTool } from './tools/EllipseTool.js';
@@ -139,7 +138,6 @@ class App {
             new BrushTool(this.doc, this.bus, this.canvasView),
             new EraserTool(this.doc, this.bus, this.canvasView),
             new ColorPickerTool(this.doc, this.bus, this.canvasView),
-            new LineTool(this.doc, this.bus, this.canvasView),
             new RectTool(this.doc, this.bus, this.canvasView),
             new FilledRectTool(this.doc, this.bus, this.canvasView),
             new EllipseTool(this.doc, this.bus, this.canvasView),
@@ -479,11 +477,10 @@ class App {
     _getToolHint(name) {
         const hints = {
             'Move':            'Drag to move layer',
-            'Brush':           'Draw with brush  |  Right-click: BG color',
+            'Brush':           'Draw with brush  |  Right-click: BG color  |  Shift: line mode  |  Ctrl: snap angle',
             'Eraser':          'Erase to transparent  |  Shift: line mode  |  Ctrl: snap angle',
             'Fill':            'Click to flood fill  |  Right-click: BG color',
             'Color Picker':    'Click to pick FG color  |  Right-click: BG color',
-            'Line':            'Drag to draw line  |  Ctrl: snap angle',
             'Rectangle':       'Drag to draw rect',
             'Filled Rect':     'Drag to draw filled rect',
             'Ellipse':         'Drag to draw ellipse',
