@@ -185,7 +185,10 @@ export class Toolbar {
             hint.textContent = tool.shortcut;
             mainBtn.appendChild(hint);
         }
-        mainBtn.appendChild(indicator);
+        const tri = document.createElement('span');
+        tri.className = 'group-indicator';
+        tri.textContent = '\u25E2';
+        mainBtn.appendChild(tri);
 
         // Update the main button's tracked tool name
         for (const entry of this._buttons) {

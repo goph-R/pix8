@@ -90,7 +90,7 @@ html, body {
     background: var(--bg-primary);
     display: grid;
     grid-template-columns: var(--ruler-size, 0px) 1fr;
-    grid-template-rows: var(--ruler-size, 0px) 1fr auto;
+    grid-template-rows: var(--ruler-size, 0px) minmax(0, 1fr) auto;
     grid-template-areas:
         "corner  rulerh"
         "rulerv  canvas"

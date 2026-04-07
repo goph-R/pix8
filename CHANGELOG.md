@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.3.1] - 2026-04-07
+
+### Fixed
+- Toolbar flyout groups (Shapes, Select) now correctly switch tools -- clicking Ellipse, Filled Ellipse, Filled Rect, or Ellipse Select no longer falls back to the first tool in the group
+- Frame panel no longer gets pushed off-screen when switching back to an animated tab after browser zoom or ruler/guide toggles
+
+### Changed
+- Frame panel height increased to 120px with vertically centered thumbnails
+- Frame tag labels raised 3px
+
 ## [1.3.0] - 2026-04-07
 
 ### Added
