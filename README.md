@@ -74,7 +74,7 @@ For development with auto-rebuild:
 
 ```bash
 npm run dev      # webpack watch mode (in one terminal)
-npm start        # serve (in another terminal)
+npm start        # serve at http://localhost:3000 (in another terminal)
 ```
 
 ## Keyboard Shortcuts

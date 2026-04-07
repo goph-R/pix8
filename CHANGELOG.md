@@ -5,6 +5,7 @@
 ### Fixed
 - Toolbar flyout groups (Shapes, Select) now correctly switch tools -- clicking Ellipse, Filled Ellipse, Filled Rect, or Ellipse Select no longer falls back to the first tool in the group
 - Frame panel no longer gets pushed off-screen when switching back to an animated tab after browser zoom or ruler/guide toggles
+- Palette editor operations (Zap Unused, Used highlight, X-Swap, X-Flip, and all index remapping) now consider all animation frames, not just the current one
 
 ### Changed
 - Frame panel height increased to 120px with vertically centered thumbnails

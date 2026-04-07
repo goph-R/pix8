@@ -160,15 +160,27 @@ export class ImageDocument {
 
     getUsedColorIndices() {
         const used = new Set();
-        for (const layer of this.layers) {
-            if (layer.type === 'text' && layer.textData) {
-                used.add(layer.textData.colorIndex);
-                continue;
+        const processLayerData = (data, textData) => {
+            if (textData) {
+                used.add(textData.colorIndex);
+                return;
             }
-            const data = layer.data;
             for (let i = 0; i < data.length; i++) {
                 const v = data[i];
                 if (v !== TRANSPARENT) used.add(v);
+            }
+        };
+        for (const layer of this.layers) {
+            processLayerData(layer.data, layer.type === 'text' ? layer.textData : null);
+        }
+        if (this.animationEnabled) {
+            for (let f = 0; f < this.frames.length; f++) {
+                if (f === this.activeFrameIndex) continue;
+                const frame = this.frames[f];
+                if (!frame.layerData) continue;
+                for (const ld of frame.layerData) {
+                    processLayerData(ld.data, ld.textData);
+                }
             }
         }
         return used;
@@ -176,34 +188,58 @@ export class ImageDocument {
 
     getColorHistogram() {
         const counts = new Uint32Array(256);
-        for (const layer of this.layers) {
-            if (layer.type === 'text' && layer.textData) {
-                counts[layer.textData.colorIndex]++;
-                continue;
+        const processLayerData = (data, textData) => {
+            if (textData) {
+                counts[textData.colorIndex]++;
+                return;
             }
-            const data = layer.data;
             for (let i = 0; i < data.length; i++) {
                 const v = data[i];
                 if (v !== TRANSPARENT) counts[v]++;
+            }
+        };
+        for (const layer of this.layers) {
+            processLayerData(layer.data, layer.type === 'text' ? layer.textData : null);
+        }
+        if (this.animationEnabled) {
+            for (let f = 0; f < this.frames.length; f++) {
+                if (f === this.activeFrameIndex) continue;
+                const frame = this.frames[f];
+                if (!frame.layerData) continue;
+                for (const ld of frame.layerData) {
+                    processLayerData(ld.data, ld.textData);
+                }
             }
         }
         return counts;
     }
 
     remapColorIndices(mapping) {
-        for (const layer of this.layers) {
-            if (layer.type === 'text' && layer.textData) {
-                const v = layer.textData.colorIndex;
+        const remapLayerData = (data, textData) => {
+            if (textData) {
+                const v = textData.colorIndex;
                 if (mapping[v] !== undefined) {
-                    layer.textData.colorIndex = mapping[v];
+                    textData.colorIndex = mapping[v];
                 }
-                continue;
+                return;
             }
-            const data = layer.data;
             for (let i = 0; i < data.length; i++) {
                 const v = data[i];
                 if (v !== TRANSPARENT && mapping[v] !== undefined) {
                     data[i] = mapping[v];
+                }
+            }
+        };
+        for (const layer of this.layers) {
+            remapLayerData(layer.data, layer.type === 'text' ? layer.textData : null);
+        }
+        if (this.animationEnabled) {
+            for (let f = 0; f < this.frames.length; f++) {
+                if (f === this.activeFrameIndex) continue;
+                const frame = this.frames[f];
+                if (!frame.layerData) continue;
+                for (const ld of frame.layerData) {
+                    remapLayerData(ld.data, ld.textData);
                 }
             }
         }
