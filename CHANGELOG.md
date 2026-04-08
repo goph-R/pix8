@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.4.0] - 2026-04-07
+## [1.4.0] - 2026-04-09
 
 ### Added
 - **Palette Copy/Paste** -- Copy and Paste buttons in palette editor toolbar copy a range of colors and paste them at the current selection start, works across tabs for cross-document palette transfer
@@ -24,6 +24,7 @@
 - File > Open now uses native Electron dialog for reliable file loading
 - Fixed Electron IPC file data transfer (Node.js Buffer pool was truncating file content)
 - Mouse cursor now updates immediately on tool switch via keyboard shortcut (no mouse movement needed)
+- Layer border now updates immediately when switching active layer
 
 ### Changed
 - Frame panel height increased to 120px with vertically centered thumbnails
@@ -36,6 +37,7 @@
 - Electron build output moved from `dist/` to `release/` to prevent packaging build artifacts into the app
 - New keyboard shortcuts: Shift+M (Ellipse Select), Ctrl+M (Mirror)
 - Toolbar shortcut hints show modifier prefix: `sM`, `cM`, etc.
+- Moved "Enable Animation" from Animation menu to Edit menu; removed Animation menu
 
 ## [1.3.0] - 2026-04-07
 

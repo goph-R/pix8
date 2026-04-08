@@ -23,7 +23,7 @@ Try it online: https://pix8.dynart.net
 - **Move tool** -- reposition layers and floating selections; snaps layer content edges to grid lines and guides
 - **Mirror tool** -- flip image or selection horizontally (click) or vertically (Shift+click)
 - **Selection tools** -- Rectangle and Ellipse selection with resizable handles, edge-based boundaries that snap to grid/guides
-- **Selection modifiers** -- Shift+drag to add, Alt+drag to subtract; Selection menu: Select All, Deselect, Expand, Shrink, Select by Alpha
+- **Selection modifiers** -- Ctrl+drag to add, Alt+drag to subtract, Shift for proportional (square/circle); Selection menu: Select All, Deselect, Expand, Shrink, Select by Alpha
 - **Free Transform** -- move, resize, and rotate selected pixels with interactive handles (T shortcut), Ctrl snaps rotation to 22.5-degree increments
 - **Text tool** -- create text layers with configurable font, size, bold/italic/underline, anti-aliased palette-mapped rendering, and palette color picker (W shortcut)
 - **Multi-document tabs** -- independent documents with separate layers, palette, undo history, and zoom/pan state
@@ -114,6 +114,8 @@ npm start        # serve at http://localhost:3000 (in another terminal)
 | O | Ellipse tool |
 | G | Flood Fill tool |
 | M | Rectangle Select tool |
+| Shift+M | Ellipse Select tool |
+| Ctrl+M | Mirror tool |
 | T | Free Transform tool |
 | W | Text tool |
 | X | Swap FG/BG colors |

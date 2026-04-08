@@ -184,6 +184,7 @@ class App {
         // Re-render on palette/layer changes
         this.bus.on('palette-changed', () => this.canvasView.render());
         this.bus.on('layer-changed', () => this.canvasView.render());
+        this.bus.on('active-layer-changed', () => this.canvasView.render());
         this.bus.on('space-tap', () => {
             if (this.doc.animationEnabled) this.framePanel.togglePlayTag();
         });
@@ -824,9 +825,6 @@ class App {
             case 'edit':
                 this._showEditMenu();
                 break;
-            case 'animation':
-                this._showAnimationMenu();
-                break;
             case 'selection':
                 this._showSelectionMenu();
                 break;
@@ -929,6 +927,8 @@ class App {
             { label: 'Clear', shortcut: 'Delete', action: () => this._clearSelection() },
             '-',
             { label: 'Set Brush from Selection', shortcut: 'Ctrl+B', action: () => this._setBrushFromSelection() },
+            '-',
+            { label: (this.doc.animationEnabled ? '\u2713 ' : '') + 'Enable Animation', action: () => this._toggleAnimation() },
         ]);
     }
 
@@ -1036,14 +1036,6 @@ class App {
         sel.active = true;
         sel._pureShape = null;
         this.bus.emit('selection-changed');
-    }
-
-    _showAnimationMenu() {
-        const anchor = document.querySelector('[data-menu="animation"]');
-        const enabled = this.doc.animationEnabled;
-        this._showDropdown(anchor, 'animation', [
-            { label: (enabled ? '\u2713 ' : '') + 'Enable', action: () => this._toggleAnimation() },
-        ]);
     }
 
     _toggleAnimation() {
