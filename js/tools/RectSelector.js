@@ -45,7 +45,7 @@ export class RectSelector extends BaseTool {
         const sel = this.doc.selection;
 
         // Determine selection mode from modifiers
-        if (e.shiftKey) {
+        if (e.ctrlKey) {
             this._selectionMode = 'add';
         } else if (e.altKey) {
             this._selectionMode = 'subtract';
@@ -86,7 +86,7 @@ export class RectSelector extends BaseTool {
         this._startY = y;
     }
 
-    _computeResizeBounds(x, y) {
+    _computeResizeBounds(x, y, shift) {
         const b = this._resizeBounds;
         const h = this._resizeHandle;
         const dx = x - this._startX;
@@ -96,10 +96,31 @@ export class RectSelector extends BaseTool {
         if (h.includes('e')) maxX = b.maxX + dx;
         if (h.includes('n')) minY = b.minY + dy;
         if (h.includes('s')) maxY = b.maxY + dy;
-        const x0 = Math.min(minX, maxX);
-        const y0 = Math.min(minY, maxY);
-        const x1 = Math.max(minX, maxX);
-        const y1 = Math.max(minY, maxY);
+        let x0 = Math.min(minX, maxX);
+        let y0 = Math.min(minY, maxY);
+        let x1 = Math.max(minX, maxX);
+        let y1 = Math.max(minY, maxY);
+        if (shift) {
+            const w = x1 - x0;
+            const ht = y1 - y0;
+            const side = Math.max(w, ht);
+            if (h.length === 2) {
+                // Corner handle: anchor opposite corner
+                if (h.includes('e')) x1 = x0 + side; else x0 = x1 - side;
+                if (h.includes('s')) y1 = y0 + side; else y0 = y1 - side;
+            } else {
+                // Edge handle: match the other axis, centered
+                if (h === 'n' || h === 's') {
+                    const cx = (x0 + x1) / 2;
+                    x0 = Math.round(cx - ht / 2);
+                    x1 = Math.round(cx + ht / 2);
+                } else {
+                    const cy = (y0 + y1) / 2;
+                    y0 = Math.round(cy - w / 2);
+                    y1 = Math.round(cy + w / 2);
+                }
+            }
+        }
         return { x0, y0, x1, y1 };
     }
 
@@ -111,7 +132,7 @@ export class RectSelector extends BaseTool {
         if (this._startX === null) return;
 
         if (this._resizing) {
-            const { x0, y0, x1, y1 } = this._computeResizeBounds(x, y);
+            const { x0, y0, x1, y1 } = this._computeResizeBounds(x, y, e.shiftKey);
             this.canvasView.clearOverlay();
             // _computeResizeBounds returns inclusive; drawOverlayRect expects exclusive end
             this.canvasView.drawOverlayRect(x0, y0, x1 + 1, y1 + 1, this._overlayColor());
@@ -144,14 +165,24 @@ export class RectSelector extends BaseTool {
             return;
         }
         this.canvasView.clearOverlay();
+        if (e.shiftKey) {
+            ({ x, y } = this._constrainSquare(this._startX, this._startY, x, y));
+        }
         this.canvasView.drawOverlayRect(this._startX, this._startY, x, y, this._overlayColor());
+    }
+
+    _constrainSquare(sx, sy, x, y) {
+        const dx = x - sx;
+        const dy = y - sy;
+        const side = Math.max(Math.abs(dx), Math.abs(dy));
+        return { x: sx + side * Math.sign(dx || 1), y: sy + side * Math.sign(dy || 1) };
     }
 
     onPointerUp(x, y, e) {
         if (this._startX === null) return;
 
         if (this._resizing) {
-            const { x0, y0, x1, y1 } = this._computeResizeBounds(x, y);
+            const { x0, y0, x1, y1 } = this._computeResizeBounds(x, y, e.shiftKey);
             this._resizing = false;
             this._resizeHandle = null;
             this._resizeBounds = null;
@@ -188,6 +219,10 @@ export class RectSelector extends BaseTool {
                 }
             }
             return;
+        }
+
+        if (e.shiftKey) {
+            ({ x, y } = this._constrainSquare(this._startX, this._startY, x, y));
         }
 
         // Edge-based: coordinates are grid-line boundaries (exclusive end)

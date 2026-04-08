@@ -143,32 +143,7 @@ class App {
 
         // Wire active tool to canvas view (must be before setActiveTool)
         this.bus.on('tool-changed', (tool) => {
-            // Commit free transform when switching away
-            const ft = this._freeTransformTool;
-            if (ft && ft.isTransformActive && tool !== ft) {
-                ft.commit();
-            }
-            this.canvasView.activeTool = tool;
-            document.getElementById('status-tool').textContent = tool.name;
-            document.getElementById('status-hint').textContent = this._getToolHint(tool.name);
-            if (tool.activate && tool !== ft) {
-                tool.activate();
-            }
-            // Auto-activate free transform when selected from toolbar/shortcut
-            if (tool === ft && !ft.isTransformActive) {
-                const sel = this.doc.selection;
-                if (!sel.active) {
-                    this._showToast('No selection');
-                    const fallback = this._lastNonTransformTool || 'Rect Select';
-                    this.toolbar.setActiveTool(fallback);
-                    return;
-                }
-                const prev = this._lastNonTransformTool || 'Rect Select';
-                ft.activate(prev, this.undoManager);
-            }
-            if (tool !== ft) {
-                this._lastNonTransformTool = tool.name;
-            }
+            this._finishToolSwitch(tool);
         });
 
         this.toolbar.setActiveTool('Brush');
@@ -178,6 +153,20 @@ class App {
         this.palettePanel = new PalettePanel(this.doc, this.bus, this.undoManager);
         this.layersPanel = new LayersPanel(this.doc, this.bus, this.undoManager);
         this.framePanel = new FramePanel(this.doc, this.bus);
+
+        // FG/BG color picker via palette editor
+        this.bus.on('open-palette-picker', (target) => {
+            const initialIdx = target === 'fg' ? this.doc.fgColorIndex : this.doc.bgColorIndex;
+            this.palettePanel._openDialog((colorIndex) => {
+                if (target === 'fg') {
+                    this.doc.fgColorIndex = colorIndex;
+                    this.bus.emit('fg-color-changed');
+                } else {
+                    this.doc.bgColorIndex = colorIndex;
+                    this.bus.emit('bg-color-changed');
+                }
+            }, initialIdx);
+        });
 
         // Undo integration: wrap tool pointer events
         this._wrapUndoIntoCanvasView();
@@ -462,17 +451,43 @@ class App {
             'Eraser':          'Erase to transparent  |  Shift: line mode  |  Ctrl: snap angle',
             'Fill':            'Click to flood fill  |  Right-click: BG color',
             'Color Picker':    'Click to pick FG color  |  Right-click: BG color',
-            'Rectangle':       'Drag to draw rect',
-            'Filled Rect':     'Drag to draw filled rect',
-            'Ellipse':         'Drag to draw ellipse',
-            'Filled Ellipse':  'Drag to draw filled ellipse',
-            'Rect Select':     'Drag to select  |  Shift: add  |  Alt: subtract',
-            'Ellipse Select':  'Drag to select  |  Shift: add  |  Alt: subtract',
-            'Free Transform':  'Move, resize, or rotate selection  |  Shift: proportional  |  Ctrl: snap angle',
+            'Rectangle':       'Drag to draw rect  |  Shift: square',
+            'Filled Rect':     'Drag to draw filled rect  |  Shift: square',
+            'Ellipse':         'Drag to draw ellipse  |  Shift: circle',
+            'Filled Ellipse':  'Drag to draw filled ellipse  |  Shift: circle',
+            'Rect Select':     'Drag to select  |  Ctrl: add  |  Alt: subtract  |  Shift: square',
+            'Ellipse Select':  'Drag to select  |  Ctrl: add  |  Alt: subtract  |  Shift: circle',
+            'Free Transform':  'Move, resize, or rotate selection  |  Enter: apply  |  Escape: cancel  |  Ctrl: snap angle',
             'Mirror':          'Click to flip horizontal  |  Shift: flip vertical',
             'Text':            'Click to add text  |  Click text layer to edit',
         };
         return hints[name] || '';
+    }
+
+    _finishToolSwitch(tool) {
+        const ft = this._freeTransformTool;
+        this.canvasView.activeTool = tool;
+        document.getElementById('status-tool').textContent = tool.name;
+        document.getElementById('status-hint').textContent = this._getToolHint(tool.name);
+        if (tool.activate && tool !== ft) {
+            tool.activate();
+        }
+        if (tool === ft && !ft.isTransformActive) {
+            const sel = this.doc.selection;
+            if (!sel.active) {
+                this._showToast('No selection');
+                const fallback = this._lastNonTransformTool || 'Rect Select';
+                this.toolbar.setActiveTool(fallback);
+                return;
+            }
+            const prev = this._lastNonTransformTool || 'Rect Select';
+            ft.activate(prev, this.undoManager);
+            this.toolbar.setLocked(true);
+        }
+        if (tool !== ft) {
+            this.toolbar.setLocked(false);
+            this._lastNonTransformTool = tool.name;
+        }
     }
 
     _wrapUndoIntoCanvasView() {
@@ -501,9 +516,15 @@ class App {
 
     _setupKeyboardShortcuts(tools) {
         const shortcutMap = {};
+        const shiftShortcutMap = {};
+        const ctrlShortcutMap = {};
         for (const tool of tools) {
             if (tool.shortcut && tool.shortcut.length === 1) {
                 shortcutMap[tool.shortcut.toLowerCase()] = tool.name;
+            } else if (tool.shortcut && tool.shortcut.startsWith('Shift+')) {
+                shiftShortcutMap[tool.shortcut.slice(6).toLowerCase()] = tool.name;
+            } else if (tool.shortcut && tool.shortcut.startsWith('Ctrl+')) {
+                ctrlShortcutMap[tool.shortcut.slice(5).toLowerCase()] = tool.name;
             }
         }
 
@@ -514,6 +535,13 @@ class App {
 
             // Tool shortcuts
             if (!e.ctrlKey && !e.altKey && !e.metaKey) {
+                if (e.shiftKey) {
+                    const toolName = shiftShortcutMap[e.key.toLowerCase()];
+                    if (toolName && !this.toolbar._disabledTools.has(toolName)) {
+                        this.bus.emit('switch-tool', toolName);
+                        return;
+                    }
+                }
                 const toolName = shortcutMap[e.key.toLowerCase()];
                 if (toolName && !this.toolbar._disabledTools.has(toolName)) {
                     this.bus.emit('switch-tool', toolName);
@@ -541,10 +569,12 @@ class App {
                 // Escape / Enter during Free Transform
                 if (this._freeTransformTool && this._freeTransformTool.isTransformActive) {
                     if (e.key === 'Escape') {
+                        this.toolbar.setLocked(false);
                         this._freeTransformTool.cancel();
                         return;
                     }
                     if (e.key === 'Enter') {
+                        this.toolbar.setLocked(false);
                         this._freeTransformTool.commit();
                         return;
                     }
@@ -575,6 +605,16 @@ class App {
                 if (e.key === '1') {
                     this.doc.activeBrush = Brush.default();
                     this.bus.emit('brush-changed');
+                    return;
+                }
+            }
+
+            // Ctrl+key tool shortcuts
+            if (e.ctrlKey && !e.shiftKey && !e.altKey) {
+                const ctrlTool = ctrlShortcutMap[e.key.toLowerCase()];
+                if (ctrlTool && !this.toolbar._disabledTools.has(ctrlTool)) {
+                    e.preventDefault();
+                    this.bus.emit('switch-tool', ctrlTool);
                     return;
                 }
             }
@@ -646,16 +686,18 @@ class App {
                 return;
             }
 
-            // Ctrl+Z = undo
+            // Ctrl+Z = undo (blocked during free transform)
             if (e.ctrlKey && !e.shiftKey && e.key === 'z') {
+                if (this._freeTransformTool && this._freeTransformTool.isTransformActive) return;
                 this.undoManager.undo();
                 e.preventDefault();
                 return;
             }
 
-            // Ctrl+Shift+Z or Ctrl+Y = redo
+            // Ctrl+Shift+Z or Ctrl+Y = redo (blocked during free transform)
             if ((e.ctrlKey && e.shiftKey && e.key === 'Z') ||
                 (e.ctrlKey && e.key === 'y')) {
+                if (this._freeTransformTool && this._freeTransformTool.isTransformActive) return;
                 this.undoManager.redo();
                 e.preventDefault();
                 return;
@@ -873,8 +915,10 @@ class App {
     _showEditMenu() {
         const anchor = document.querySelector('[data-menu="edit"]');
         this._showDropdown(anchor, 'edit', [
-            { label: 'Undo', shortcut: 'Ctrl+Z', action: () => this.undoManager.undo() },
-            { label: 'Redo', shortcut: 'Ctrl+Shift+Z', action: () => this.undoManager.redo() },
+            { label: 'Undo', shortcut: 'Ctrl+Z', action: () => this.undoManager.undo(),
+              disabled: this._freeTransformTool?.isTransformActive },
+            { label: 'Redo', shortcut: 'Ctrl+Shift+Z', action: () => this.undoManager.redo(),
+              disabled: this._freeTransformTool?.isTransformActive },
             '-',
             { label: 'Cut', shortcut: 'Ctrl+X', action: () => this._cut() },
             { label: 'Copy', shortcut: 'Ctrl+C', action: () => this._copy() },

@@ -100,7 +100,11 @@ export class CanvasView {
 
     _updateCursor() {
         if (this._activeTool) {
-            this.container.style.cursor = this._activeTool.getCursor();
+            const cursor = this._activeTool.getCursor();
+            this.container.style.cursor = 'none';
+            requestAnimationFrame(() => {
+                this.container.style.cursor = cursor;
+            });
         }
     }
 

@@ -11,7 +11,7 @@ export class EllipseSelector extends BaseTool {
     constructor(doc, bus, canvasView) {
         super(doc, bus, canvasView);
         this.name = 'Ellipse Select';
-        this.shortcut = '';
+        this.shortcut = 'Shift+M';
         this.icon = 'images/icon-ellipseselect.svg';
         this.showsResizeHandles = true;
         this._startX = null;
@@ -44,7 +44,7 @@ export class EllipseSelector extends BaseTool {
     onPointerDown(x, y, e) {
         const sel = this.doc.selection;
 
-        if (e.shiftKey) {
+        if (e.ctrlKey) {
             this._selectionMode = 'add';
         } else if (e.altKey) {
             this._selectionMode = 'subtract';
@@ -83,7 +83,7 @@ export class EllipseSelector extends BaseTool {
         this._startY = y;
     }
 
-    _computeResizeBounds(x, y) {
+    _computeResizeBounds(x, y, shift) {
         const b = this._resizeBounds;
         const h = this._resizeHandle;
         const dx = x - this._startX;
@@ -93,10 +93,29 @@ export class EllipseSelector extends BaseTool {
         if (h.includes('e')) maxX = b.maxX + dx;
         if (h.includes('n')) minY = b.minY + dy;
         if (h.includes('s')) maxY = b.maxY + dy;
-        const x0 = Math.min(minX, maxX);
-        const y0 = Math.min(minY, maxY);
-        const x1 = Math.max(minX, maxX);
-        const y1 = Math.max(minY, maxY);
+        let x0 = Math.min(minX, maxX);
+        let y0 = Math.min(minY, maxY);
+        let x1 = Math.max(minX, maxX);
+        let y1 = Math.max(minY, maxY);
+        if (shift) {
+            const w = x1 - x0;
+            const ht = y1 - y0;
+            const side = Math.max(w, ht);
+            if (h.length === 2) {
+                if (h.includes('e')) x1 = x0 + side; else x0 = x1 - side;
+                if (h.includes('s')) y1 = y0 + side; else y0 = y1 - side;
+            } else {
+                if (h === 'n' || h === 's') {
+                    const cx = (x0 + x1) / 2;
+                    x0 = Math.round(cx - ht / 2);
+                    x1 = Math.round(cx + ht / 2);
+                } else {
+                    const cy = (y0 + y1) / 2;
+                    y0 = Math.round(cy - w / 2);
+                    y1 = Math.round(cy + w / 2);
+                }
+            }
+        }
         return { x0, y0, x1, y1 };
     }
 
@@ -118,7 +137,7 @@ export class EllipseSelector extends BaseTool {
         if (this._startX === null) return;
 
         if (this._resizing) {
-            const { x0, y0, x1, y1 } = this._computeResizeBounds(x, y);
+            const { x0, y0, x1, y1 } = this._computeResizeBounds(x, y, e.shiftKey);
             this.canvasView.clearOverlay();
             // _computeResizeBounds returns inclusive; preview methods expect exclusive end
             if (this.doc.selection._pureShape === 'ellipse') {
@@ -154,6 +173,9 @@ export class EllipseSelector extends BaseTool {
             return;
         }
         this.canvasView.clearOverlay();
+        if (e.shiftKey) {
+            ({ x, y } = this._constrainSquare(this._startX, this._startY, x, y));
+        }
         const minX = Math.min(this._startX, x);
         const minY = Math.min(this._startY, y);
         const maxX = Math.max(this._startX, x);
@@ -161,11 +183,18 @@ export class EllipseSelector extends BaseTool {
         this._drawEllipsePreview(minX, minY, maxX, maxY);
     }
 
+    _constrainSquare(sx, sy, x, y) {
+        const dx = x - sx;
+        const dy = y - sy;
+        const side = Math.max(Math.abs(dx), Math.abs(dy));
+        return { x: sx + side * Math.sign(dx || 1), y: sy + side * Math.sign(dy || 1) };
+    }
+
     onPointerUp(x, y, e) {
         if (this._startX === null) return;
 
         if (this._resizing) {
-            const { x0, y0, x1, y1 } = this._computeResizeBounds(x, y);
+            const { x0, y0, x1, y1 } = this._computeResizeBounds(x, y, e.shiftKey);
             this._resizing = false;
             this._resizeHandle = null;
             this._resizeBounds = null;
@@ -205,6 +234,10 @@ export class EllipseSelector extends BaseTool {
                 }
             }
             return;
+        }
+
+        if (e.shiftKey) {
+            ({ x, y } = this._constrainSquare(x0, y0, x, y));
         }
 
         // Edge-based: convert exclusive end to inclusive for Selection model

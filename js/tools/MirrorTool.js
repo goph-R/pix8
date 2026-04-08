@@ -5,7 +5,7 @@ export class MirrorTool extends BaseTool {
     constructor(doc, bus, canvasView) {
         super(doc, bus, canvasView);
         this.name = 'Mirror';
-        this.shortcut = '';
+        this.shortcut = 'Ctrl+M';
         this.icon = 'images/icon-mirror.svg';
         this._shiftDown = false;
         this._onKeyDown = (e) => { if (e.key === 'Shift') { this._shiftDown = true; this._updateCursor(); } };
@@ -29,7 +29,7 @@ export class MirrorTool extends BaseTool {
     }
 
     _updateCursor() {
-        this.canvasView.container.style.cursor = this.getCursor();
+        this.canvasView._updateCursor();
     }
 
     onPointerDown(x, y, e) {

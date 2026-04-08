@@ -6,6 +6,10 @@
 - **Palette Copy/Paste** -- Copy and Paste buttons in palette editor toolbar copy a range of colors and paste them at the current selection start, works across tabs for cross-document palette transfer
 - **Palette Merge** -- Merge now properly averages all colors in the selected range, remaps all pixel data to the first index, and zeros out freed slots
 - **Close confirmation** -- browser shows beforeunload prompt on refresh/close; Electron shows native quit dialog
+- **Shift proportional constraint** -- hold Shift while drawing or resizing selections and shapes (Rectangle, Filled Rect, Ellipse, Filled Ellipse, Rect Select, Ellipse Select) to constrain to square/circle; edge handles adjust the other axis centered
+- **Ctrl+drag to add selection** -- selection add modifier changed from Shift to Ctrl (Shift is now proportional constraint)
+- **Free Transform toolbar lock** -- all tools and tool shortcuts are disabled while Free Transform is active; only Enter (apply) and Escape (cancel) work; undo/redo also blocked during transform
+- **FG/BG color picker** -- left-click the color swatch area opens palette editor for FG color, right-click for BG color; clicking a palette swatch sets the color immediately while keeping the editor open
 
 ### Fixed
 - Toolbar flyout groups (Shapes, Select) now correctly switch tools -- clicking Ellipse, Filled Ellipse, Filled Rect, or Ellipse Select no longer falls back to the first tool in the group
@@ -19,6 +23,7 @@
 - Keyboard shortcuts no longer fire while a dialog is open
 - File > Open now uses native Electron dialog for reliable file loading
 - Fixed Electron IPC file data transfer (Node.js Buffer pool was truncating file content)
+- Mouse cursor now updates immediately on tool switch via keyboard shortcut (no mouse movement needed)
 
 ### Changed
 - Frame panel height increased to 120px with vertically centered thumbnails
@@ -29,6 +34,8 @@
 - Electron: DevTools via `DEVTOOLS=1 npm run electron` with F12 toggle
 - Renamed palette editor "Neg" button to "Invert"
 - Electron build output moved from `dist/` to `release/` to prevent packaging build artifacts into the app
+- New keyboard shortcuts: Shift+M (Ellipse Select), Ctrl+M (Mirror)
+- Toolbar shortcut hints show modifier prefix: `sM`, `cM`, etc.
 
 ## [1.3.0] - 2026-04-07
 

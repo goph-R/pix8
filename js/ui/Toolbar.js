@@ -9,6 +9,7 @@ export class Toolbar {
         this._openFlyout = null;
         this._flyoutBrowsing = false; // true while in flyout browsing mode
         this._disabledTools = new Set();
+        this._locked = false;
 
         this._render();
 
@@ -84,14 +85,22 @@ export class Toolbar {
         img.draggable = false;
         btn.appendChild(img);
 
-        if (tool.shortcut && tool.shortcut.length === 1) {
+        if (tool.shortcut) {
             const hint = document.createElement('span');
             hint.className = 'shortcut-hint';
-            hint.textContent = tool.shortcut;
+            hint.textContent = this._formatShortcutHint(tool.shortcut);
             btn.appendChild(hint);
         }
 
         return btn;
+    }
+
+    _formatShortcutHint(shortcut) {
+        if (shortcut.length === 1) return shortcut;
+        if (shortcut.startsWith('Shift+')) return 's' + shortcut.slice(6);
+        if (shortcut.startsWith('Ctrl+')) return 'c' + shortcut.slice(5);
+        if (shortcut.startsWith('Alt+')) return 'a' + shortcut.slice(4);
+        return shortcut;
     }
 
     _createFlyoutGroup(group, colorSelector) {
@@ -179,10 +188,10 @@ export class Toolbar {
         img.draggable = false;
         mainBtn.appendChild(img);
         mainBtn.title = tool.name + (tool.shortcut ? ` (${tool.shortcut})` : '');
-        if (tool.shortcut && tool.shortcut.length === 1) {
+        if (tool.shortcut) {
             const hint = document.createElement('span');
             hint.className = 'shortcut-hint';
-            hint.textContent = tool.shortcut;
+            hint.textContent = this._formatShortcutHint(tool.shortcut);
             mainBtn.appendChild(hint);
         }
         const tri = document.createElement('span');
@@ -225,6 +234,7 @@ export class Toolbar {
         const alwaysEnabled = ['Move'];
         const textEnabled = ['Move', 'Text'];
 
+        if (this._locked) return;
         this._disabledTools.clear();
         for (const tool of this.tools) {
             let disabled = false;
@@ -251,7 +261,15 @@ export class Toolbar {
         }
     }
 
+    setLocked(locked) {
+        this._locked = locked;
+        for (const entry of this._buttons) {
+            entry.btn.disabled = locked || this._disabledTools.has(entry.toolName);
+        }
+    }
+
     setActiveTool(name) {
+        if (this._locked) return;
         for (const entry of this._buttons) {
             if (entry.isGroupMain) {
                 const isActive = entry.groupTools.includes(name);

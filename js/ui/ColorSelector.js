@@ -15,6 +15,15 @@ export class ColorSelector {
             this.update();
         });
 
+        const swatchArea = document.getElementById('color-selector-swatches');
+        swatchArea.addEventListener('click', () => {
+            this.bus.emit('open-palette-picker', 'fg');
+        });
+        swatchArea.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            this.bus.emit('open-palette-picker', 'bg');
+        });
+
         this.bus.on('fg-color-changed', () => this.update());
         this.bus.on('bg-color-changed', () => this.update());
         this.bus.on('palette-changed', () => this.update());

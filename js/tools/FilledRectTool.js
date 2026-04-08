@@ -20,8 +20,16 @@ export class FilledRectTool extends BaseTool {
         this.canvasView.drawBrushPreview(x, y);
     }
 
+    _constrain(x, y) {
+        const dx = x - this._startX;
+        const dy = y - this._startY;
+        const side = Math.max(Math.abs(dx), Math.abs(dy));
+        return { x: this._startX + side * Math.sign(dx || 1), y: this._startY + side * Math.sign(dy || 1) };
+    }
+
     onPointerMove(x, y, e) {
         if (this._startX === null) return;
+        if (e.shiftKey) ({ x, y } = this._constrain(x, y));
         this.canvasView.clearOverlay();
         rectFilled(this._startX, this._startY, x, y, (px, py) => {
             this.previewBrush(px, py);
@@ -30,6 +38,7 @@ export class FilledRectTool extends BaseTool {
 
     onPointerUp(x, y, e) {
         if (this._startX === null) return;
+        if (e.shiftKey) ({ x, y } = this._constrain(x, y));
         const layer = this.doc.getActiveLayer();
         if (!layer.locked) {
             rectFilled(this._startX, this._startY, x, y, (px, py) => {

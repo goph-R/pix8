@@ -65,7 +65,7 @@ export class PalettePanel {
         }
     }
 
-    _openDialog() {
+    _openDialog(onPick, initialIndex) {
         if (this._dialog) {
             this._dialog._destroy();
             this._dialog = null;
@@ -73,6 +73,10 @@ export class PalettePanel {
 
         const dlg = new PaletteEditDialog(this.doc, this.bus, this.undoManager);
         dlg.onClose = () => { this._dialog = null; };
+        if (onPick) {
+            dlg.onPick = onPick;
+            if (initialIndex !== undefined) dlg.setInitialIndex(initialIndex);
+        }
         dlg.open();
         this._dialog = dlg;
     }

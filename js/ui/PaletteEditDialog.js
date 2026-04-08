@@ -6,6 +6,7 @@ export class PaletteEditDialog {
         this.bus = bus;
         this.undoManager = undoManager;
         this.onClose = null;
+        this.onPick = null; // callback(colorIndex) — pick mode
 
         this._overlay = null;
         this._onKey = null;
@@ -41,6 +42,11 @@ export class PaletteEditDialog {
         this._indexLabel = null;
         this._rangePreview = null;
         this._grid = null;
+    }
+
+    setInitialIndex(idx) {
+        this._rangeStart = idx;
+        this._rangeEnd = idx;
     }
 
     open() {
@@ -683,6 +689,10 @@ export class PaletteEditDialog {
         if (!this._dragging) return;
         this._dragging = false;
         this._grid.releasePointerCapture(e.pointerId);
+        // Pick mode: single click sets color immediately
+        if (this.onPick && this._rangeStart === this._rangeEnd) {
+            this.onPick(this._rangeStart);
+        }
         if (this._rangeStart > this._rangeEnd) {
             const tmp = this._rangeStart;
             this._rangeStart = this._rangeEnd;
