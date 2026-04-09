@@ -1,6 +1,20 @@
 # Changelog
 
-## [1.4.0] - 2026-04-09
+## [1.4.1] - 2026-04-09
+
+### Fixed
+- Mirror tool with non-rectangular selections now uses floating selection — pixels are lifted, mirrored as a preview, and committed on click outside or tool switch; consecutive mirrors flip the existing floating without content loss
+- Image > Rotate Left/Right undo now correctly restores document dimensions (was only restoring pixel data, leaving width/height swapped)
+
+### Changed
+- Extracted `BaseSelector` base class from `RectSelector` and `EllipseSelector`, eliminating ~200 lines of duplicated selection logic (resize handles, move, constrain-to-square, modifier keys)
+- Extracted `BaseShapeTool` base class from `RectTool`, `FilledRectTool`, `EllipseTool`, `FilledEllipseTool`, eliminating duplicated constraint and pointer lifecycle code
+- Extracted `_clampBounds()`, `_forEachEllipsePixel()`, and `_setMaskRect()` helpers in `Selection`, replacing 6x duplicated bounds clamping and 3x duplicated ellipse iteration
+- Moved default `onHover()` brush preview into `BaseTool`, removing identical one-liner overrides from 5 tool classes
+- Extracted shared dialog helpers (`INPUT_STYLE`, `ROW_STYLE`, `createDitherRow()`) into `dialogHelpers.js`, replacing 3 duplicated style strings and 2 duplicated dither select blocks in `app.js`
+- Split `app.js` (2,649 lines) into 4 mixin modules: `MenuManager.js` (menus), `KeyboardManager.js` (shortcuts), `FileManager.js` (file I/O & export), `ImageOperations.js` (rotate, resize, crop, trim, merge, selection ops) — app.js reduced to 961 lines
+
+## [1.4.0] - 2026-04-08
 
 ### Added
 - **Palette Copy/Paste** -- Copy and Paste buttons in palette editor toolbar copy a range of colors and paste them at the current selection start, works across tabs for cross-document palette transfer

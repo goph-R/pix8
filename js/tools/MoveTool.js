@@ -13,6 +13,8 @@ export class MoveTool extends BaseTool {
         this._contentBounds = null;
     }
 
+    onHover() {} // no brush preview
+
     getCursor() {
         return 'grab';
     }

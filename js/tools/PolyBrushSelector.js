@@ -11,6 +11,8 @@ export class PolyBrushSelector extends BaseTool {
         this._currentY = 0;
     }
 
+    onHover() {} // no brush preview
+
     onPointerDown(x, y, e) {
         // Close polygon if clicking near first vertex
         if (this._vertices.length >= 3) {

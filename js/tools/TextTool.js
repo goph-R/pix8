@@ -18,7 +18,7 @@ export class TextTool extends BaseTool {
         }
     }
 
-    getCursor() { return 'text'; }
+    onHover() {} // no brush preview
 
-    previewBrush() {} // no brush preview
+    getCursor() { return 'text'; }
 }

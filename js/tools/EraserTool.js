@@ -15,10 +15,6 @@ export class EraserTool extends BaseTool {
         this._startY = null;
     }
 
-    onHover(x, y) {
-        this.canvasView.drawBrushPreview(x, y);
-    }
-
     onPointerDown(x, y, e) {
         const layer = this.doc.getActiveLayer();
         if (layer.locked) return;

@@ -14,6 +14,10 @@ export class BaseTool {
     onPointerMove(x, y, e) {}
     onPointerUp(x, y, e) {}
 
+    onHover(x, y) {
+        this.canvasView.drawBrushPreview(x, y);
+    }
+
     getCursor() {
         return 'crosshair';
     }

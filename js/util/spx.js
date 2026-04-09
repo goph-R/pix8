@@ -3,7 +3,7 @@ import JSZip from 'jszip';
 
 const MAX_PCX_W = 320;
 const MAX_PCX_H = 200;
-
+ 
 /**
  * Export SPX (Sprite XML) + PCX sprite sheet(s).
  *

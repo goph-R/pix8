@@ -7,16 +7,12 @@ export class BrushTool extends BaseTool {
         this.name = 'Brush';
         this.shortcut = 'B';
         this.icon = 'images/icon-brush.svg';
-        this._lastX = null;
-        this._lastY = null;
         this._startX = null;
         this._startY = null;
+        this._lastX = null;
+        this._lastY = null;
         this._lineMode = false;
         this._color = undefined;
-    }
-
-    onHover(x, y) {
-        this.canvasView.drawBrushPreview(x, y);
     }
 
     onPointerDown(x, y, e) {
@@ -64,9 +60,9 @@ export class BrushTool extends BaseTool {
         this._lastY = y;
     }
 
-
     onPointerUp(x, y, e) {
         if (this._lineMode && this._startX !== null) {
+            if (this._startX === null) return;
             const end = this._snapEnd(x, y, e);
             const layer = this.doc.getActiveLayer();
             if (!layer.locked) {

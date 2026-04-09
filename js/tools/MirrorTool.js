@@ -12,6 +12,8 @@ export class MirrorTool extends BaseTool {
         this._onKeyUp = (e) => { if (e.key === 'Shift') { this._shiftDown = false; this._updateCursor(); } };
     }
 
+    onHover() {} // no brush preview
+
     activate() {
         document.addEventListener('keydown', this._onKeyDown);
         document.addEventListener('keyup', this._onKeyUp);
@@ -22,6 +24,8 @@ export class MirrorTool extends BaseTool {
         document.removeEventListener('keydown', this._onKeyDown);
         document.removeEventListener('keyup', this._onKeyUp);
         this._shiftDown = false;
+        // Commit any pending floating mirror on tool switch
+        this._commitFloating();
     }
 
     getCursor() {
@@ -32,6 +36,16 @@ export class MirrorTool extends BaseTool {
         this.canvasView._updateCursor();
     }
 
+    _commitFloating() {
+        const sel = this.doc.selection;
+        if (sel.hasFloating()) {
+            sel.commitFloating(this.doc.getActiveLayer());
+            this.canvasView.invalidateSelectionEdges();
+            this.bus.emit('layer-changed');
+            this.bus.emit('selection-changed');
+        }
+    }
+
     onPointerDown(x, y, e) {
         const vertical = this._shiftDown;
         const sel = this.doc.selection;
@@ -39,7 +53,25 @@ export class MirrorTool extends BaseTool {
         if (!layer) return;
 
         if (sel.active) {
-            this._mirrorSelection(layer, sel, vertical);
+            // Click outside selection → commit and done
+            if (!sel.hasFloating() && !sel.isSelected(x, y)) {
+                return;
+            }
+            if (sel.hasFloating()) {
+                // Clicking outside floating → commit
+                const f = sel.floating;
+                const inFloating = x >= f.originX && x < f.originX + f.width &&
+                                   y >= f.originY && y < f.originY + f.height;
+                if (!inFloating) {
+                    this._commitFloating();
+                    return;
+                }
+                // Clicking inside floating → flip the existing floating again (no commit/re-lift)
+                this._flipFloating(f, vertical);
+                this.canvasView.invalidateSelectionEdges();
+            } else {
+                this._mirrorSelection(layer, sel, vertical);
+            }
         } else {
             this._mirrorFullImage(vertical);
         }
@@ -49,85 +81,35 @@ export class MirrorTool extends BaseTool {
     }
 
     _mirrorSelection(layer, sel, vertical) {
-        // Commit any existing floating selection first
-        if (sel.hasFloating()) {
-            sel.commitFloating(layer);
-        }
-
-        const bounds = sel.getBounds();
-        if (!bounds) return;
-        const { minX, minY, maxX, maxY } = bounds;
-        const w = maxX - minX + 1;
-        const h = maxY - minY + 1;
-
-        // Mirror pixels within selection bounds on the active layer
-        if (vertical) {
-            for (let row = 0; row < Math.floor(h / 2); row++) {
-                for (let col = 0; col < w; col++) {
-                    const dx = minX + col;
-                    const topY = minY + row;
-                    const botY = maxY - row;
-                    if (!sel.isSelected(dx, topY) && !sel.isSelected(dx, botY)) continue;
-                    const topPx = sel.isSelected(dx, topY) ? layer.getPixelDoc(dx, topY) : TRANSPARENT;
-                    const botPx = sel.isSelected(dx, botY) ? layer.getPixelDoc(dx, botY) : TRANSPARENT;
-                    if (sel.isSelected(dx, topY)) layer.setPixelAutoExtend(dx, topY, botPx);
-                    if (sel.isSelected(dx, botY)) layer.setPixelAutoExtend(dx, botY, topPx);
-                }
-            }
-        } else {
-            for (let row = 0; row < h; row++) {
-                for (let col = 0; col < Math.floor(w / 2); col++) {
-                    const dy = minY + row;
-                    const leftX = minX + col;
-                    const rightX = maxX - col;
-                    if (!sel.isSelected(leftX, dy) && !sel.isSelected(rightX, dy)) continue;
-                    const leftPx = sel.isSelected(leftX, dy) ? layer.getPixelDoc(leftX, dy) : TRANSPARENT;
-                    const rightPx = sel.isSelected(rightX, dy) ? layer.getPixelDoc(rightX, dy) : TRANSPARENT;
-                    if (sel.isSelected(leftX, dy)) layer.setPixelAutoExtend(leftX, dy, rightPx);
-                    if (sel.isSelected(rightX, dy)) layer.setPixelAutoExtend(rightX, dy, leftPx);
-                }
-            }
-        }
-
-        // Mirror the selection mask itself
-        this._mirrorMask(sel, bounds, vertical);
+        // Lift pixels into floating selection, then flip
+        sel.liftPixels(layer);
+        if (!sel.hasFloating()) return;
+        this._flipFloating(sel.floating, vertical);
+        this.canvasView.invalidateSelectionEdges();
     }
 
-    _mirrorMask(sel, bounds, vertical) {
-        const { minX, minY, maxX, maxY } = bounds;
-        const w = maxX - minX + 1;
-        const h = maxY - minY + 1;
-        const docW = sel.width;
-
+    _flipFloating(f, vertical) {
+        const w = f.width;
+        const h = f.height;
         if (vertical) {
             for (let row = 0; row < Math.floor(h / 2); row++) {
                 for (let col = 0; col < w; col++) {
-                    const dx = minX + col;
-                    const topY = minY + row;
-                    const botY = maxY - row;
-                    const topIdx = topY * docW + dx;
-                    const botIdx = botY * docW + dx;
-                    const tmp = sel.mask[topIdx];
-                    sel.mask[topIdx] = sel.mask[botIdx];
-                    sel.mask[botIdx] = tmp;
+                    const topIdx = row * w + col;
+                    const botIdx = (h - 1 - row) * w + col;
+                    const tmpD = f.data[topIdx]; f.data[topIdx] = f.data[botIdx]; f.data[botIdx] = tmpD;
+                    const tmpM = f.mask[topIdx]; f.mask[topIdx] = f.mask[botIdx]; f.mask[botIdx] = tmpM;
                 }
             }
         } else {
             for (let row = 0; row < h; row++) {
                 for (let col = 0; col < Math.floor(w / 2); col++) {
-                    const dy = minY + row;
-                    const leftX = minX + col;
-                    const rightX = maxX - col;
-                    const leftIdx = dy * docW + leftX;
-                    const rightIdx = dy * docW + rightX;
-                    const tmp = sel.mask[leftIdx];
-                    sel.mask[leftIdx] = sel.mask[rightIdx];
-                    sel.mask[rightIdx] = tmp;
+                    const leftIdx = row * w + col;
+                    const rightIdx = row * w + (w - 1 - col);
+                    const tmpD = f.data[leftIdx]; f.data[leftIdx] = f.data[rightIdx]; f.data[rightIdx] = tmpD;
+                    const tmpM = f.mask[leftIdx]; f.mask[leftIdx] = f.mask[rightIdx]; f.mask[rightIdx] = tmpM;
                 }
             }
         }
-        sel._pureShape = null;
-        sel._resizeSource = null;
     }
 
     _mirrorFullImage(vertical) {

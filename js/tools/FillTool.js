@@ -9,6 +9,8 @@ export class FillTool extends BaseTool {
         this.icon = 'images/icon-fill.svg';
     }
 
+    onHover() {} // no brush preview
+
     getCursor() {
         return 'crosshair';
     }

@@ -26,19 +26,54 @@ export class Selection {
         return this.mask[docY * this.width + docX] === 1;
     }
 
+    _clampBounds(x0, y0, x1, y1) {
+        return {
+            minX: Math.max(0, Math.min(x0, x1)),
+            minY: Math.max(0, Math.min(y0, y1)),
+            maxX: Math.min(this.width - 1, Math.max(x0, x1)),
+            maxY: Math.min(this.height - 1, Math.max(y0, y1)),
+        };
+    }
+
+    _forEachEllipsePixel(minX, minY, maxX, maxY, callback) {
+        const cx = (minX + maxX) / 2;
+        const cy = (minY + maxY) / 2;
+        const rx = (maxX - minX) / 2;
+        const ry = (maxY - minY) / 2;
+        if (rx <= 0 || ry <= 0) return;
+        // +0.5 ensures edge pixels at the exact boundary are included
+        const erx = rx + 0.5;
+        const ery = ry + 0.5;
+        // Clamp iteration to document bounds (ellipse may extend off-canvas)
+        const iterMinX = Math.max(0, minX);
+        const iterMinY = Math.max(0, minY);
+        const iterMaxX = Math.min(this.width - 1, maxX);
+        const iterMaxY = Math.min(this.height - 1, maxY);
+        for (let y = iterMinY; y <= iterMaxY; y++) {
+            for (let x = iterMinX; x <= iterMaxX; x++) {
+                const dx = (x - cx) / erx;
+                const dy = (y - cy) / ery;
+                if (dx * dx + dy * dy <= 1) {
+                    callback(x, y);
+                }
+            }
+        }
+    }
+
+    _setMaskRect(minX, minY, maxX, maxY, value) {
+        for (let y = minY; y <= maxY; y++) {
+            for (let x = minX; x <= maxX; x++) {
+                this.mask[y * this.width + x] = value;
+            }
+        }
+    }
+
     selectRect(x0, y0, x1, y1) {
         this._resizeSource = null;
         this._pureShape = 'rect';
         this.mask.fill(0);
-        const minX = Math.max(0, Math.min(x0, x1));
-        const minY = Math.max(0, Math.min(y0, y1));
-        const maxX = Math.min(this.width - 1, Math.max(x0, x1));
-        const maxY = Math.min(this.height - 1, Math.max(y0, y1));
-        for (let y = minY; y <= maxY; y++) {
-            for (let x = minX; x <= maxX; x++) {
-                this.mask[y * this.width + x] = 1;
-            }
-        }
+        const { minX, minY, maxX, maxY } = this._clampBounds(x0, y0, x1, y1);
+        this._setMaskRect(minX, minY, maxX, maxY, 1);
         this.active = true;
     }
 
@@ -46,56 +81,27 @@ export class Selection {
         this._resizeSource = null;
         this._pureShape = 'ellipse';
         this.mask.fill(0);
-        const minX = Math.max(0, Math.min(x0, x1));
-        const minY = Math.max(0, Math.min(y0, y1));
-        const maxX = Math.min(this.width - 1, Math.max(x0, x1));
-        const maxY = Math.min(this.height - 1, Math.max(y0, y1));
-        const cx = (minX + maxX) / 2;
-        const cy = (minY + maxY) / 2;
-        const rx = (maxX - minX) / 2;
-        const ry = (maxY - minY) / 2;
-        if (rx <= 0 || ry <= 0) return;
-        const erx = rx + 0.5;
-        const ery = ry + 0.5;
-        for (let y = minY; y <= maxY; y++) {
-            for (let x = minX; x <= maxX; x++) {
-                const dx = (x - cx) / erx;
-                const dy = (y - cy) / ery;
-                if (dx * dx + dy * dy <= 1) {
-                    this.mask[y * this.width + x] = 1;
-                }
-            }
-        }
+        const minX = Math.min(x0, x1), minY = Math.min(y0, y1);
+        const maxX = Math.max(x0, x1), maxY = Math.max(y0, y1);
+        this._forEachEllipsePixel(minX, minY, maxX, maxY, (x, y) => {
+            this.mask[y * this.width + x] = 1;
+        });
         this.active = true;
     }
 
     addRect(x0, y0, x1, y1) {
         this._resizeSource = null;
         this._pureShape = null;
-        const minX = Math.max(0, Math.min(x0, x1));
-        const minY = Math.max(0, Math.min(y0, y1));
-        const maxX = Math.min(this.width - 1, Math.max(x0, x1));
-        const maxY = Math.min(this.height - 1, Math.max(y0, y1));
-        for (let y = minY; y <= maxY; y++) {
-            for (let x = minX; x <= maxX; x++) {
-                this.mask[y * this.width + x] = 1;
-            }
-        }
+        const { minX, minY, maxX, maxY } = this._clampBounds(x0, y0, x1, y1);
+        this._setMaskRect(minX, minY, maxX, maxY, 1);
         this.active = true;
     }
 
     subtractRect(x0, y0, x1, y1) {
         this._resizeSource = null;
         this._pureShape = null;
-        const minX = Math.max(0, Math.min(x0, x1));
-        const minY = Math.max(0, Math.min(y0, y1));
-        const maxX = Math.min(this.width - 1, Math.max(x0, x1));
-        const maxY = Math.min(this.height - 1, Math.max(y0, y1));
-        for (let y = minY; y <= maxY; y++) {
-            for (let x = minX; x <= maxX; x++) {
-                this.mask[y * this.width + x] = 0;
-            }
-        }
+        const { minX, minY, maxX, maxY } = this._clampBounds(x0, y0, x1, y1);
+        this._setMaskRect(minX, minY, maxX, maxY, 0);
         if (!this.mask.includes(1)) {
             this.active = false;
         }
@@ -104,52 +110,22 @@ export class Selection {
     addEllipse(x0, y0, x1, y1) {
         this._resizeSource = null;
         this._pureShape = null;
-        const minX = Math.max(0, Math.min(x0, x1));
-        const minY = Math.max(0, Math.min(y0, y1));
-        const maxX = Math.min(this.width - 1, Math.max(x0, x1));
-        const maxY = Math.min(this.height - 1, Math.max(y0, y1));
-        const cx = (minX + maxX) / 2;
-        const cy = (minY + maxY) / 2;
-        const rx = (maxX - minX) / 2;
-        const ry = (maxY - minY) / 2;
-        if (rx <= 0 || ry <= 0) return;
-        const erx = rx + 0.5;
-        const ery = ry + 0.5;
-        for (let y = minY; y <= maxY; y++) {
-            for (let x = minX; x <= maxX; x++) {
-                const dx = (x - cx) / erx;
-                const dy = (y - cy) / ery;
-                if (dx * dx + dy * dy <= 1) {
-                    this.mask[y * this.width + x] = 1;
-                }
-            }
-        }
+        const minX = Math.min(x0, x1), minY = Math.min(y0, y1);
+        const maxX = Math.max(x0, x1), maxY = Math.max(y0, y1);
+        this._forEachEllipsePixel(minX, minY, maxX, maxY, (x, y) => {
+            this.mask[y * this.width + x] = 1;
+        });
         this.active = true;
     }
 
     subtractEllipse(x0, y0, x1, y1) {
         this._resizeSource = null;
         this._pureShape = null;
-        const minX = Math.max(0, Math.min(x0, x1));
-        const minY = Math.max(0, Math.min(y0, y1));
-        const maxX = Math.min(this.width - 1, Math.max(x0, x1));
-        const maxY = Math.min(this.height - 1, Math.max(y0, y1));
-        const cx = (minX + maxX) / 2;
-        const cy = (minY + maxY) / 2;
-        const rx = (maxX - minX) / 2;
-        const ry = (maxY - minY) / 2;
-        if (rx <= 0 || ry <= 0) return;
-        const erx = rx + 0.5;
-        const ery = ry + 0.5;
-        for (let y = minY; y <= maxY; y++) {
-            for (let x = minX; x <= maxX; x++) {
-                const dx = (x - cx) / erx;
-                const dy = (y - cy) / ery;
-                if (dx * dx + dy * dy <= 1) {
-                    this.mask[y * this.width + x] = 0;
-                }
-            }
-        }
+        const minX = Math.min(x0, x1), minY = Math.min(y0, y1);
+        const maxX = Math.max(x0, x1), maxY = Math.max(y0, y1);
+        this._forEachEllipsePixel(minX, minY, maxX, maxY, (x, y) => {
+            this.mask[y * this.width + x] = 0;
+        });
         if (!this.mask.includes(1)) {
             this.active = false;
         }
@@ -314,15 +290,8 @@ export class Selection {
         if (this._pureShape === 'rect') {
             this.mask.fill(0);
             this._pureShape = 'rect'; // preserve through the fill(0)
-            const minX = Math.max(0, newMinX);
-            const minY = Math.max(0, newMinY);
-            const maxX = Math.min(this.width - 1, newMaxX);
-            const maxY = Math.min(this.height - 1, newMaxY);
-            for (let y = minY; y <= maxY; y++) {
-                for (let x = minX; x <= maxX; x++) {
-                    this.mask[y * this.width + x] = 1;
-                }
-            }
+            const { minX, minY, maxX, maxY } = this._clampBounds(newMinX, newMinY, newMaxX, newMaxY);
+            this._setMaskRect(minX, minY, maxX, maxY, 1);
             this.active = maxX >= minX && maxY >= minY;
             return;
         }
@@ -330,26 +299,10 @@ export class Selection {
         if (this._pureShape === 'ellipse') {
             this.mask.fill(0);
             this._pureShape = 'ellipse';
-            const minX = Math.max(0, newMinX);
-            const minY = Math.max(0, newMinY);
-            const maxX = Math.min(this.width - 1, newMaxX);
-            const maxY = Math.min(this.height - 1, newMaxY);
-            const cx = (newMinX + newMaxX) / 2;
-            const cy = (newMinY + newMaxY) / 2;
-            const rx = (newMaxX - newMinX) / 2;
-            const ry = (newMaxY - newMinY) / 2;
-            if (rx <= 0 || ry <= 0) { this.active = false; return; }
-            const erx = rx + 0.5;
-            const ery = ry + 0.5;
-            for (let y = minY; y <= maxY; y++) {
-                for (let x = minX; x <= maxX; x++) {
-                    const dx = (x - cx) / erx;
-                    const dy = (y - cy) / ery;
-                    if (dx * dx + dy * dy <= 1) {
-                        this.mask[y * this.width + x] = 1;
-                    }
-                }
-            }
+            // Pass unclamped bounds — _forEachEllipsePixel clamps iteration internally
+            this._forEachEllipsePixel(newMinX, newMinY, newMaxX, newMaxY, (x, y) => {
+                this.mask[y * this.width + x] = 1;
+            });
             this.active = true;
             return;
         }

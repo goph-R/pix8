@@ -9,6 +9,8 @@ export class ColorPickerTool extends BaseTool {
         this.icon = 'images/icon-colorpicker.svg';
     }
 
+    onHover() {} // no brush preview
+
     onPointerDown(x, y, e) {
         this._pick(x, y, e);
     }
