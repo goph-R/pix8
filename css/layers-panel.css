@@ -111,6 +111,13 @@
     opacity: 0.4;
 }
 
+.layer-visibility img {
+    width: 14px;
+    height: 14px;
+    filter: invert(0.8);
+    pointer-events: none;
+}
+
 .layer-thumbnail {
     width: 32px;
     height: 32px;

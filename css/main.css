@@ -228,6 +228,20 @@ html, body {
     gap: 4px;
 }
 
+/* Hide native number-input spin buttons app-wide: Firefox 68 / Mypal (WinXP)
+   renders them outside the field width, overlapping the digits. Sliders and
+   typing cover the same need. */
+input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
 /* Generic small icon button */
 .icon-btn {
     width: 22px;

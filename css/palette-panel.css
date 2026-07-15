@@ -56,8 +56,11 @@
     border: 1px solid var(--border, #3c3c3c);
     border-radius: 6px;
     padding: 10px;
+    width: -moz-fit-content; /* Firefox 68 / Mypal: 'fit-content' width keyword is unsupported */
     width: fit-content;
-    max-width: 484px;
+    /* Roomier cap: Mypal's older flexbox doesn't shrink the RGB range sliders, so the
+       content needs ~495px; the old 484px cap pushed the number inputs out of the dialog. */
+    max-width: 520px;
     color: var(--text, #ccc);
 }
 
@@ -233,6 +236,7 @@
 
 .ped-rgb-slider {
     flex: 1;
+    min-width: 0; /* let the range input shrink instead of pushing the number input out of the dialog */
     height: 4px;
     -webkit-appearance: none;
     appearance: none;
@@ -253,6 +257,7 @@
 
 .ped-rgb-num {
     width: 34px;
+    flex-shrink: 0; /* keep the number input at its fixed width */
     background: var(--bg-input, #3c3c3c);
     border: 1px solid var(--border, #3c3c3c);
     border-radius: 2px;

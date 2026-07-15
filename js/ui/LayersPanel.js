@@ -1,3 +1,5 @@
+import { withVersion } from '../constants.js';
+
 export class LayersPanel {
     constructor(doc, bus, undoManager) {
         this.doc = doc;
@@ -107,7 +109,10 @@ export class LayersPanel {
             // Visibility toggle
             const vis = document.createElement('div');
             vis.className = 'layer-visibility' + (layer.visible ? '' : ' hidden');
-            vis.textContent = layer.visible ? '👁' : '○';
+            const visIcon = document.createElement('img');
+            visIcon.src = withVersion(layer.visible ? 'images/icon-eye.svg' : 'images/icon-eye-off.svg');
+            visIcon.draggable = false;
+            vis.appendChild(visIcon);
             vis.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const beforeStates = this.doc.layers.map(l => l.visible);

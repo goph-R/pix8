@@ -26,12 +26,21 @@
 #canvas-container .checkerboard {
     position: absolute;
     z-index: 0;
-    background-image:
-        conic-gradient(
-            var(--checkerboard-dark) 90deg,
-            var(--checkerboard-light) 90deg 180deg,
-            var(--checkerboard-dark) 180deg 270deg,
-            var(--checkerboard-light) 270deg
-        );
+    /* Fallback for browsers without conic-gradient (Firefox < 83, e.g. Mypal on WinXP):
+       an SVG tile draws the two dark squares over the light background-color. Scaled by
+       the same background-size the JS sets, so it matches the conic version's square size. */
+    background-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='2'%20height='2'%3E%3Crect%20x='1'%20y='0'%20width='1'%20height='1'%20fill='%232a2a2a'/%3E%3Crect%20x='0'%20y='1'%20width='1'%20height='1'%20fill='%232a2a2a'/%3E%3C/svg%3E");
     background-color: var(--checkerboard-light);
+}
+
+@supports (background-image: conic-gradient(#000 90deg, #fff 0)) {
+    #canvas-container .checkerboard {
+        background-image:
+            conic-gradient(
+                var(--checkerboard-dark) 90deg,
+                var(--checkerboard-light) 90deg 180deg,
+                var(--checkerboard-dark) 180deg 270deg,
+                var(--checkerboard-light) 270deg
+            );
+    }
 }

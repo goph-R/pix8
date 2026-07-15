@@ -193,6 +193,13 @@
     background: var(--bg-hover);
 }
 
+#color-swap-btn img {
+    width: 11px;
+    height: 11px;
+    filter: invert(0.7);
+    pointer-events: none;
+}
+
 #color-index-label {
     font-size: 10px;
     color: var(--text-dim);

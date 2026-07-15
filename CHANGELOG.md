@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.6.1] - 2026-07-15
+
+### Fixed
+- **Windows XP / Mypal (Firefox 68) compatibility** — a set of rendering issues in the older browser:
+  - Transparency **checkerboard** used `conic-gradient` (unsupported in FF < 83); added an SVG-tile fallback gated behind `@supports`, keeping the gradient for modern browsers
+  - Palette **edit**, color **swap**, and layer **visibility** buttons used non-ASCII glyphs (✎, ⇄, 👁, ○) that render as missing-character boxes; replaced with SVG icons matching the existing icon set (`icon-edit`, `icon-swap`, `icon-eye`, `icon-eye-off`)
+  - **Edit Palette dialog**: the RGB sliders pushed the number inputs out of the dialog — added `min-width: 0` on the sliders, hid the native number spin buttons app-wide (FF 68 renders them outside the field, overlapping the digits), and gave the dialog a `-moz-fit-content` width with a roomier max-width
+
 ## [1.6.0] - 2026-05-03
 
 ### Added
