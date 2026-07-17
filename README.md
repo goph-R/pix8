@@ -97,7 +97,15 @@ npm run build    # webpack production build
 npm start        # serve at http://localhost:3000
 ```
 
-For development with auto-rebuild:
+For development with auto-rebuild, one line (webpack watch backgrounded + server in the foreground):
+
+```bash
+npm run dev & npm start
+```
+
+`serve` binds to all network interfaces, so it prints a LAN URL (e.g. `http://192.168.0.x:3000`) alongside `localhost` -- handy for testing on another machine on the network. To stop, `Ctrl+C` the server, then `kill %1` (or `fg` then `Ctrl+C`) to end the backgrounded webpack watcher.
+
+Or run the two halves in separate terminals if you prefer isolated output:
 
 ```bash
 npm run dev      # webpack watch mode (in one terminal)
