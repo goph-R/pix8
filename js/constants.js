@@ -1,5 +1,5 @@
 // Bump this on each release to force cache reload of CSS/JS/images in production.
-export const ASSET_VERSION = '1.6.1';
+export const ASSET_VERSION = '1.6.2';
 
 // Appends ?v=ASSET_VERSION to an asset path for cache-busting.
 export function withVersion(path) {

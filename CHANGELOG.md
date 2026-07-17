@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.6.2] - 2026-07-17
+
+### Changed
+- **Palette editor "Sort" now always remaps pixels.** Sorting a palette range (Hue/Light, Lightness, Histogram) reorders the entries *and* repoints every pixel that used them, so the image stays visually identical while the palette gets a cleaner, human-readable layout. The previous non-remapping sort (which changed the image's appearance) has been removed — reordering without remapping only ever corrupted the picture. Uses the same single-history-push + `remapColorIndices` pattern as X-Swap/X-Flip.
+
 ## [1.6.1] - 2026-07-15
 
 ### Fixed

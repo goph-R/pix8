@@ -1124,6 +1124,18 @@ export class PaletteEditDialog {
             pal.setColor(lo + i, ...entries[i].color);
         }
 
+        // Sort always remaps pixels so the image looks unchanged — the color
+        // originally at entries[i].index now lives at lo + i. Reordering the
+        // palette without remapping would just corrupt the image, which we
+        // never want.
+        const mapping = new Array(256);
+        for (let i = 0; i < 256; i++) mapping[i] = i;
+        for (let i = 0; i < entries.length; i++) {
+            mapping[entries[i].index] = lo + i;
+        }
+        this.doc.remapColorIndices(mapping);
+        this.bus.emit('document-changed');
+
         this.updateSwatches();
         this.bus.emit('palette-changed');
     }
