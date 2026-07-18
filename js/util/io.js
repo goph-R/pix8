@@ -1,6 +1,8 @@
+import JSZip from 'jszip';
 import { ImageDocument } from '../model/ImageDocument.js';
 import { Layer } from '../model/Layer.js';
 import { Palette } from '../model/Palette.js';
+import { Renderer } from '../render/Renderer.js';
 import { TRANSPARENT } from '../constants.js';
 
 // ─── PIX8 Project Format ─────────────────────────────────────────────────
@@ -444,6 +446,87 @@ export function exportPNG(doc, renderer) {
     return new Promise(resolve => {
         canvas.toBlob(blob => resolve(blob), 'image/png');
     });
+}
+
+// ─── Per-Layer PNG Export (zipped) ───────────────────────────────────────
+// One PNG per layer, each at the layer's own size, named by layer name.
+// Layer opacity is baked into the alpha channel; TRANSPARENT pixels stay clear.
+// Layers whose (sanitized, case-insensitive) name already appears are skipped.
+
+function sanitizeLayerFilename(name) {
+    let n = (name || '').replace(/[\/\\:*?"<>|\x00-\x1f]+/g, '_').replace(/\s+/g, ' ').trim();
+    // Strip trailing dots/spaces (illegal on Windows) and guard reserved/empty names.
+    n = n.replace(/[. ]+$/, '');
+    if (!n) n = 'Layer';
+    return n;
+}
+
+function layerToImageData(doc, layer) {
+    const w = layer.width, h = layer.height;
+    const out = new ImageData(w, h);
+    const dst = out.data;
+
+    // Text layers are positioned in document space — render the layer alone
+    // into a doc-sized buffer (reusing the real renderer) and crop its rect.
+    if (layer.type === 'text' && layer.textData) {
+        const fakeDoc = {
+            width: doc.width, height: doc.height, palette: doc.palette,
+            layers: [layer], animationEnabled: false, onionSkinning: false, frames: [],
+        };
+        const full = new Renderer(fakeDoc).composite();
+        const src = full.data;
+        for (let y = 0; y < h; y++) {
+            const dy = layer.offsetY + y;
+            if (dy < 0 || dy >= doc.height) continue;
+            for (let x = 0; x < w; x++) {
+                const dx = layer.offsetX + x;
+                if (dx < 0 || dx >= doc.width) continue;
+                const s = (dy * doc.width + dx) * 4;
+                const d = (y * w + x) * 4;
+                dst[d] = src[s]; dst[d + 1] = src[s + 1];
+                dst[d + 2] = src[s + 2]; dst[d + 3] = src[s + 3];
+            }
+        }
+        return out;
+    }
+
+    // Pixel layer: map indices straight to RGBA, baking opacity into alpha.
+    const opacity = layer.opacity !== undefined ? layer.opacity : 1;
+    const alpha = Math.round(opacity * 255);
+    const data = layer.data, palette = doc.palette;
+    for (let i = 0; i < w * h; i++) {
+        const ci = data[i];
+        if (ci === TRANSPARENT) continue;
+        const [r, g, b] = palette.getColor(ci);
+        const off = i * 4;
+        dst[off] = r; dst[off + 1] = g; dst[off + 2] = b; dst[off + 3] = alpha;
+    }
+    return out;
+}
+
+function imageDataToPNGBlob(imageData) {
+    const canvas = document.createElement('canvas');
+    canvas.width = imageData.width;
+    canvas.height = imageData.height;
+    canvas.getContext('2d').putImageData(imageData, 0, 0);
+    return new Promise(resolve => canvas.toBlob(blob => resolve(blob), 'image/png'));
+}
+
+export async function exportLayersPNGZip(doc) {
+    const zip = new JSZip();
+    const usedNames = new Set();
+    let count = 0;
+    for (const layer of doc.layers) {
+        const name = sanitizeLayerFilename(layer.name);
+        const key = name.toLowerCase();
+        if (usedNames.has(key)) continue; // first layer with this name wins
+        usedNames.add(key);
+        const blob = await imageDataToPNGBlob(layerToImageData(doc, layer));
+        zip.file(name + '.png', blob);
+        count++;
+    }
+    if (count === 0) return null;
+    return zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
 }
 
 // ─── PAL Format ─────────────────────────────────────────────────────────

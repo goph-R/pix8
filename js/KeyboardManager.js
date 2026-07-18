@@ -48,6 +48,13 @@ export function _setupKeyboardShortcuts(tools) {
         }
         if (!isArrow) this._endNudge();
 
+        // F2 = rename the active layer (same as double-clicking its name)
+        if (e.key === 'F2' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+            e.preventDefault();
+            this.layersPanel.startRenameActiveLayer();
+            return;
+        }
+
         // Tool shortcuts
         if (!e.ctrlKey && !e.altKey && !e.metaKey) {
             if (e.shiftKey) {

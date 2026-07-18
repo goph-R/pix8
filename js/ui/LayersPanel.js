@@ -248,6 +248,14 @@ export class LayersPanel {
             Math.round(vw * scale) || 1, Math.round(vh * scale) || 1);
     }
 
+    // Rename the active layer (F2), mirroring the double-click behavior.
+    startRenameActiveLayer() {
+        const nameEl = this.list.querySelector('.layer-item.active .layer-name');
+        if (!nameEl) return;
+        const index = this.doc.activeLayerIndex;
+        this._startRename(nameEl, this.doc.layers[index], index);
+    }
+
     _startRename(nameEl, layer, layerIndex) {
         const beforeName = layer.name;
         const input = document.createElement('input');

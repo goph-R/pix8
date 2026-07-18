@@ -4,7 +4,7 @@ import {
     savePix8, loadPix8,
     exportBMP, importBMP,
     exportPCX, importPCX,
-    exportPNG, exportICO, getValidICOLayers, downloadBlob
+    exportPNG, exportLayersPNGZip, exportICO, getValidICOLayers, downloadBlob
 } from './util/io.js';
 import { exportGIF } from './util/gif.js';
 import { exportSPXZip } from './util/spx.js';
@@ -430,6 +430,11 @@ export function _showExportDialog() {
                         downloadBlob(blob, 'export.png');
                         break;
                     }
+                    case 'png-layers': {
+                        const zipBlob = await exportLayersPNGZip(this.doc);
+                        if (zipBlob) downloadBlob(zipBlob, defaultName + '-layers.zip');
+                        break;
+                    }
                     case 'gif': {
                         const wasAnimated = this.doc.animationEnabled;
                         if (!wasAnimated) this._ensureSingleFrame();
@@ -487,6 +492,7 @@ export function _showExportDialog() {
     const icoLayers = getValidICOLayers(this.doc);
     const formats = [
         { value: 'png', label: 'PNG' },
+        { value: 'png-layers', label: 'PNG layers (zip)' },
         { value: 'bmp', label: 'BMP (8-bit indexed)' },
         { value: 'pcx', label: 'PCX (8-bit indexed)' },
         { value: 'gif', label: 'GIF' },

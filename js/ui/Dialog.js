@@ -56,6 +56,7 @@ export default class Dialog {
 
         // Footer (only if buttons provided)
         this._buttons = [];
+        this._primaryIdx = -1;
         if (opts.buttons && opts.buttons.length) {
             const footer = document.createElement('div');
             footer.className = 'palette-dialog-footer';
@@ -65,7 +66,10 @@ export default class Dialog {
             for (const btnOpt of opts.buttons) {
                 const btn = document.createElement('button');
                 btn.textContent = btnOpt.label;
-                if (btnOpt.primary) btn.className = 'primary';
+                if (btnOpt.primary) {
+                    btn.className = 'primary';
+                    if (this._primaryIdx < 0) this._primaryIdx = this._buttons.length;
+                }
                 btn.addEventListener('click', () => {
                     if (btnOpt.onClick) {
                         btnOpt.onClick(this);
@@ -81,18 +85,25 @@ export default class Dialog {
 
         this.overlay.appendChild(this.dialog);
 
-        // Keyboard
-        const enterIdx = opts.enterButton !== undefined ? opts.enterButton : -1;
+        // Keyboard: Escape always cancels; Enter triggers OK. The OK button is
+        // opts.enterButton if given, otherwise the primary button.
+        const enterIdx = opts.enterButton !== undefined ? opts.enterButton : this._primaryIdx;
         this._onKey = (e) => {
             if (e.key === 'Escape') {
+                e.preventDefault();
                 this.close();
             } else if (e.key === 'Enter' && enterIdx >= 0 && this._buttons[enterIdx]) {
-                // Don't trigger button when typing in a textarea or text input
+                // Don't trigger button when typing in a textarea (Enter = newline)
                 if (e.target.tagName === 'TEXTAREA') return;
+                e.preventDefault();
                 this._buttons[enterIdx].click();
             }
             e.stopPropagation();
         };
+
+        // Make the dialog focusable so Enter/Escape are caught even when no
+        // field inside it holds focus.
+        this.dialog.tabIndex = -1;
 
         // Overlay click-to-close (mousedown + click must both be on overlay)
         let mouseDownOnOverlay = false;
@@ -111,6 +122,9 @@ export default class Dialog {
         if (focusEl) {
             focusEl.focus();
             if (focusEl.select) focusEl.select();
+        } else {
+            // Focus the dialog itself so keyboard events reach _onKey.
+            this.dialog.focus();
         }
         return this;
     }

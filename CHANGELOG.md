@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.6.4] - 2026-07-18
+
+### Added
+- **Export > PNG layers (zip)** — exports every layer as its own PNG (at the layer's native size, with per-layer opacity baked into the alpha and transparent pixels kept clear), bundled into a single zip named after the document. Files are named by layer name; layers whose (sanitized, case-insensitive) name is already taken are skipped, first-one-wins.
+- **F2 renames the active layer** — starts the same inline rename as double-clicking the layer's name (commits on Enter/blur, cancels on Escape, same undo entry).
+
+### Changed
+- **Dialogs: Enter confirms, Escape cancels, everywhere.** The dialog base class now defaults the Enter key to the primary button when a dialog doesn't specify one (previously Enter did nothing in a few dialogs, e.g. Import Image / Paste Image), and focuses the dialog on open so the keys work even when no field holds focus. Multi-line text fields still take Enter as a newline.
+
 ## [1.6.3] - 2026-07-18
 
 ### Added
