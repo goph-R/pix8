@@ -975,55 +975,49 @@ export class PaletteEditDialog {
         if (!op) return;
 
         const len = op.rangeLen;
-        let destEnd = destStart + len - 1;
-        if (destEnd > 255) {
+        const destEnd = destStart + len - 1;
+        if (destStart < 0 || destEnd > 255) {
             this._cancelPendingOp();
             return;
         }
 
-        // If the destination overlaps the source, snap it to the nearest
-        // side so the two blocks just touch. A strict swap is only a valid
-        // permutation when the ranges are disjoint, and X-Swap must stay a
-        // permutation so the pixel remap leaves the image identical.
         const srcLo = op.srcStart, srcHi = op.srcEnd;
-        if (!(destEnd < srcLo || destStart > srcHi)) {
-            if (destStart <= srcLo) {
-                destStart = srcLo - len;          // snap just before the source
-                destEnd = srcLo - 1;
-                if (destStart < 0) {              // no room before → snap after
-                    destStart = srcHi + 1;
-                    destEnd = destStart + len - 1;
-                }
-            } else {
-                destStart = srcHi + 1;            // snap just after the source
-                destEnd = destStart + len - 1;
-                if (destEnd > 255) {              // no room after → snap before
-                    destStart = srcLo - len;
-                    destEnd = srcLo - 1;
-                }
-            }
-            if (destStart < 0 || destEnd > 255) { // neither side fits → abort
-                this._cancelPendingOp();
-                return;
-            }
-        }
+        const disjoint = destEnd < srcLo || destStart > srcHi;
 
         this._pushPaletteHistory();
         const pal = this.doc.palette;
+        const mapping = new Array(256);
+        for (let i = 0; i < 256; i++) mapping[i] = i;
 
-        for (let i = 0; i < len; i++) {
-            const a = [...pal.getColor(op.srcStart + i)];
-            const b = [...pal.getColor(destStart + i)];
-            pal.setColor(op.srcStart + i, ...b);
-            pal.setColor(destStart + i, ...a);
-        }
-        if (op.type === 'xswap') {
-            const mapping = new Array(256);
-            for (let i = 0; i < 256; i++) mapping[i] = i;
+        if (disjoint) {
+            // Exact block swap: exchange the two equal-length ranges.
             for (let i = 0; i < len; i++) {
-                mapping[op.srcStart + i] = destStart + i;
-                mapping[destStart + i] = op.srcStart + i;
+                const a = [...pal.getColor(srcLo + i)];
+                const b = [...pal.getColor(destStart + i)];
+                pal.setColor(srcLo + i, ...b);
+                pal.setColor(destStart + i, ...a);
+                mapping[srcLo + i] = destStart + i;
+                mapping[destStart + i] = srcLo + i;
             }
+        } else {
+            // Overlapping drop: rotate the union range so the source block
+            // slides onto the destination and the colors it passes over wrap
+            // around to fill the vacated slots. A rotation is a bijection, so
+            // the xswap remap still leaves the image visually identical.
+            const uLo = Math.min(srcLo, destStart);
+            const uHi = Math.max(srcHi, destEnd);
+            const U = uHi - uLo + 1;
+            const shift = destStart - srcLo;   // >0 shifts right, <0 shifts left
+            const old = [];
+            for (let i = 0; i < U; i++) old.push([...pal.getColor(uLo + i)]);
+            for (let i = 0; i < U; i++) {
+                const from = ((i - shift) % U + U) % U;
+                pal.setColor(uLo + i, ...old[from]);
+                mapping[uLo + from] = uLo + i;
+            }
+        }
+
+        if (op.type === 'xswap') {
             this.doc.remapColorIndices(mapping);
             this.bus.emit('document-changed');
         }

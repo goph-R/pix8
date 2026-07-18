@@ -7,7 +7,7 @@
 - **Per-document grid size** — the configurable grid size now lives on the document instead of being a single app-wide value, so each open tab keeps its own grid, and the size is saved in / restored from the `.pix8` project file (older projects default to 16).
 
 ### Changed
-- **Palette editor "X-Swap" now allows overlapping drops.** Dropping a range onto a destination that overlaps the source no longer silently does nothing — it snaps the destination to the nearest touching position and performs the exact block swap, keeping the operation a valid permutation so the pixel remap leaves the image identical.
+- **Palette editor "X-Swap" now allows overlapping drops.** Dropping a range onto a destination that overlaps the source no longer silently does nothing — the source block slides onto the destination and the colors it passes over wrap around to fill the vacated slots (a rotation of the union range). Rotation is a valid permutation, so the pixel remap still leaves the image visually identical. Disjoint drops keep the exact block-swap behavior as before.
 
 ### Fixed
 - **Menu checkmarks render on Windows XP / Mypal** — replaced the `✓` (U+2713) glyph used for toggled menu items (Show Grid, Snap to Grid, Show Rulers, Show Guides, Enable Animation, Show Border, Show All Borders) with an SVG icon, so it no longer shows as a missing-character box in Mypal (Firefox 68).
