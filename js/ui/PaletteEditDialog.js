@@ -974,20 +974,42 @@ export class PaletteEditDialog {
         const op = this._pendingOp;
         if (!op) return;
 
-        const destEnd = destStart + op.rangeLen - 1;
+        const len = op.rangeLen;
+        let destEnd = destStart + len - 1;
         if (destEnd > 255) {
             this._cancelPendingOp();
             return;
         }
 
+        // If the destination overlaps the source, snap it to the nearest
+        // side so the two blocks just touch. A strict swap is only a valid
+        // permutation when the ranges are disjoint, and X-Swap must stay a
+        // permutation so the pixel remap leaves the image identical.
         const srcLo = op.srcStart, srcHi = op.srcEnd;
         if (!(destEnd < srcLo || destStart > srcHi)) {
-            return;
+            if (destStart <= srcLo) {
+                destStart = srcLo - len;          // snap just before the source
+                destEnd = srcLo - 1;
+                if (destStart < 0) {              // no room before → snap after
+                    destStart = srcHi + 1;
+                    destEnd = destStart + len - 1;
+                }
+            } else {
+                destStart = srcHi + 1;            // snap just after the source
+                destEnd = destStart + len - 1;
+                if (destEnd > 255) {              // no room after → snap before
+                    destStart = srcLo - len;
+                    destEnd = srcLo - 1;
+                }
+            }
+            if (destStart < 0 || destEnd > 255) { // neither side fits → abort
+                this._cancelPendingOp();
+                return;
+            }
         }
 
         this._pushPaletteHistory();
         const pal = this.doc.palette;
-        const len = op.rangeLen;
 
         for (let i = 0; i < len; i++) {
             const a = [...pal.getColor(op.srcStart + i)];

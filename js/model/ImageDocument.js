@@ -17,6 +17,9 @@ export class ImageDocument {
         this.selection = new Selection(width, height);
         this.selectedLayerIndices = new Set([0]);
 
+        // Grid (per-document; drives Show Grid / Snap to Grid)
+        this.gridSize = 16;
+
         // Animation
         this.animationEnabled = false;
         this.onionSkinning = false;

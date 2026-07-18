@@ -35,8 +35,7 @@ export class CanvasView {
         this.panX = 0;
         this.panY = 0;
 
-        // Configurable grid
-        this.gridSize = 16;
+        // Configurable grid (gridSize lives on the document — see this.doc.gridSize)
         this.gridVisible = false;
         this.snapToGrid = false;
 
@@ -45,6 +44,7 @@ export class CanvasView {
         this.rulersVisible = false;
         this.guides = new Guides(this);
         this.showLayerBorder = false;
+        this.showAllLayerBorders = false;
 
         // Marching ants state
         this._marchingAntsOffset = 0;
@@ -193,8 +193,8 @@ export class CanvasView {
         const snapDoc = snapScreenPx / this.zoom;
 
         // Snap to grid lines
-        if (this.snapToGrid && this.gridSize > 1) {
-            const gs = this.gridSize;
+        if (this.snapToGrid && this.doc.gridSize > 1) {
+            const gs = this.doc.gridSize;
             const nearestX = Math.round(docX / gs) * gs;
             const nearestY = Math.round(docY / gs) * gs;
             if (Math.abs(docX - nearestX) <= snapDoc && nearestX >= 0 && nearestX <= this.doc.width) {
@@ -372,8 +372,8 @@ export class CanvasView {
 
         const checkX = (edgeX) => {
             // Grid lines
-            if (this.snapToGrid && this.gridSize > 1) {
-                const nearest = Math.round(edgeX / this.gridSize) * this.gridSize;
+            if (this.snapToGrid && this.doc.gridSize > 1) {
+                const nearest = Math.round(edgeX / this.doc.gridSize) * this.doc.gridSize;
                 const d = Math.abs(edgeX - nearest);
                 if (d < bestDx && d <= snapDoc) { bestDx = d; snapDx = nearest - edgeX; }
             }
@@ -388,8 +388,8 @@ export class CanvasView {
         };
 
         const checkY = (edgeY) => {
-            if (this.snapToGrid && this.gridSize > 1) {
-                const nearest = Math.round(edgeY / this.gridSize) * this.gridSize;
+            if (this.snapToGrid && this.doc.gridSize > 1) {
+                const nearest = Math.round(edgeY / this.doc.gridSize) * this.doc.gridSize;
                 const d = Math.abs(edgeY - nearest);
                 if (d < bestDy && d <= snapDoc) { bestDy = d; snapDy = nearest - edgeY; }
             }
@@ -415,7 +415,7 @@ export class CanvasView {
 
     _drawConfigGrid(docW, docH, zoom, panX, panY) {
         const ctx = this.gridCanvas.getContext('2d');
-        const gs = this.gridSize;
+        const gs = this.doc.gridSize;
         ctx.strokeStyle = 'rgba(0, 0, 0, 1.0)';
         ctx.lineWidth = 1;
         ctx.beginPath();
@@ -574,24 +574,33 @@ export class CanvasView {
         const cw = this.gridCanvas.width;
         const ch = this.gridCanvas.height;
         this.gridOverlay.draw(doc.width, doc.height, zoom, panX, panY);
-        if (this.gridVisible && this.gridSize > 1) {
+        if (this.gridVisible && this.doc.gridSize > 1) {
             this._drawConfigGrid(doc.width, doc.height, zoom, panX, panY);
         }
         this.guides.draw(this.selectionCtx, cw, ch, zoom, panX, panY);
-        // Draw active layer border
-        if (this.showLayerBorder) {
-            const layer = doc.getActiveLayer();
-            if (layer) {
-                const ctx = this.selectionCtx;
+        // Draw layer borders (dashed). All-layer borders are gray; the active
+        // layer border is yellow and drawn last so it stays on top.
+        if (this.showAllLayerBorders || this.showLayerBorder) {
+            const ctx = this.selectionCtx;
+            const drawBorder = (layer, style) => {
                 const lx = panX + layer.offsetX * zoom;
                 const ly = panY + layer.offsetY * zoom;
                 const lw = layer.width * zoom;
                 const lh = layer.height * zoom;
-                ctx.strokeStyle = 'rgba(255, 220, 0, 0.8)';
+                ctx.strokeStyle = style;
                 ctx.lineWidth = 1;
                 ctx.setLineDash([4, 4]);
                 ctx.strokeRect(lx + 0.5, ly + 0.5, lw - 1, lh - 1);
                 ctx.setLineDash([]);
+            };
+            if (this.showAllLayerBorders) {
+                for (const layer of doc.layers) {
+                    if (layer.visible) drawBorder(layer, 'rgba(160, 160, 160, 0.8)');
+                }
+            }
+            if (this.showLayerBorder) {
+                const active = doc.getActiveLayer();
+                if (active) drawBorder(active, 'rgba(255, 220, 0, 0.8)');
             }
         }
         if (this._activeTool && this._activeTool.isTransformActive) {

@@ -99,7 +99,10 @@ export function _showDropdown(anchorEl, menuName, items) {
             color: ${disabled ? '#666' : '#ccc'};
             display: flex; justify-content: space-between;
         `;
-        el.innerHTML = `<span>${item.label}</span>${item.shortcut ? `<span style="color:#888; margin-left:24px">${item.shortcut}</span>` : ''}`;
+        const check = item.checked
+            ? `<img src="images/icon-check.svg?v=${ASSET_VERSION}" style="width:12px; height:12px; margin-right:6px; vertical-align:-1px;" draggable="false">`
+            : '';
+        el.innerHTML = `<span>${check}${item.label}</span>${item.shortcut ? `<span style="color:#888; margin-left:24px">${item.shortcut}</span>` : ''}`;
         if (!disabled) {
             el.addEventListener('mouseenter', () => { el.style.background = '#007acc'; });
             el.addEventListener('mouseleave', () => { el.style.background = 'none'; });
@@ -162,7 +165,7 @@ export function _showEditMenu() {
         '-',
         { label: 'Set Brush from Selection', shortcut: 'Ctrl+B', action: () => this._setBrushFromSelection() },
         '-',
-        { label: (this.doc.animationEnabled ? '\u2713 ' : '') + 'Enable Animation', action: () => this._toggleAnimation() },
+        { label: 'Enable Animation', checked: this.doc.animationEnabled, action: () => this._toggleAnimation() },
     ]);
 }
 
@@ -209,19 +212,19 @@ export function _showViewMenu() {
             cv.render();
         }},
         '-',
-        { label: (cv.gridVisible ? '\u2713 ' : '') + 'Show Grid', shortcut: "Ctrl+'", action: () => {
+        { label: 'Show Grid', checked: cv.gridVisible, shortcut: "Ctrl+'", action: () => {
             cv.gridVisible = !cv.gridVisible; cv.render();
         }},
-        { label: (cv.snapToGrid ? '\u2713 ' : '') + 'Snap to Grid', shortcut: "Ctrl+Shift+'", action: () => {
+        { label: 'Snap to Grid', checked: cv.snapToGrid, shortcut: "Ctrl+Shift+'", action: () => {
             cv.snapToGrid = !cv.snapToGrid;
         }},
         { label: 'Grid Settings...', action: () => this._showGridSettingsDialog() },
         '-',
-        { label: (cv.rulersVisible ? '\u2713 ' : '') + 'Show Rulers', shortcut: 'Alt+R', action: () => {
+        { label: 'Show Rulers', checked: cv.rulersVisible, shortcut: 'Alt+R', action: () => {
             cv.setRulersVisible(!cv.rulersVisible);
         }},
         '-',
-        { label: (cv.guides.visible ? '\u2713 ' : '') + 'Show Guides', shortcut: 'Ctrl+;', action: () => {
+        { label: 'Show Guides', checked: cv.guides.visible, shortcut: 'Ctrl+;', action: () => {
             cv.guides.visible = !cv.guides.visible; cv.render();
         }},
         { label: 'Clear All Guides', action: () => {
@@ -259,8 +262,12 @@ export function _showLayerMenu() {
         { label: 'Set Fixed Size...', disabled: isTextLayer, action: () => this._setFixedSize() },
         { label: 'Remove Fixed Size', disabled: !activeLayer || !activeLayer.isFixedSize, action: () => this._removeFixedSize() },
         '-',
-        { label: (this.canvasView.showLayerBorder ? '\u2713 ' : '') + 'Show Border', action: () => {
+        { label: 'Show Border', checked: this.canvasView.showLayerBorder, action: () => {
             this.canvasView.showLayerBorder = !this.canvasView.showLayerBorder;
+            this.canvasView.render();
+        }},
+        { label: 'Show All Borders', checked: this.canvasView.showAllLayerBorders, action: () => {
+            this.canvasView.showAllLayerBorders = !this.canvasView.showAllLayerBorders;
             this.canvasView.render();
         }},
         '-',
@@ -284,7 +291,7 @@ export function _showGridSettingsDialog() {
             { label: 'Cancel' },
             { label: 'OK', primary: true, onClick: () => {
                 const val = Math.max(2, Math.min(256, parseInt(sizeInput.value) || 16));
-                this.canvasView.gridSize = val;
+                this.doc.gridSize = val;
                 this.canvasView.render();
                 dlg.close();
             }},
@@ -306,7 +313,7 @@ export function _showGridSettingsDialog() {
     sizeInput.type = 'number';
     sizeInput.min = 2;
     sizeInput.max = 256;
-    sizeInput.value = this.canvasView.gridSize;
+    sizeInput.value = this.doc.gridSize;
     sizeInput.style.cssText = inputStyle;
     sizeRow.appendChild(sizeLabel);
     sizeRow.appendChild(sizeInput);

@@ -27,6 +27,7 @@ export function savePix8(doc) {
         activeLayerIndex: doc.activeLayerIndex,
         fgColorIndex: doc.fgColorIndex,
         bgColorIndex: doc.bgColorIndex,
+        gridSize: doc.gridSize,
         animationEnabled: doc.animationEnabled,
         onionSkinning: doc.onionSkinning,
         onionOpacity: doc.onionOpacity,
@@ -105,6 +106,7 @@ export function loadPix8(arrayBuffer) {
     doc.palette.import(meta.palette);
     doc.fgColorIndex = meta.fgColorIndex;
     doc.bgColorIndex = meta.bgColorIndex;
+    doc.gridSize = meta.gridSize ?? 16;
 
     // Remove default layer
     doc.layers = [];
