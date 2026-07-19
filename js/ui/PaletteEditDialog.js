@@ -208,6 +208,16 @@ export class PaletteEditDialog {
                 } else {
                     this._cancel();
                 }
+                return;
+            }
+            // Ctrl+Z inside the dialog routes to the dialog's own palette undo,
+            // never the global undo stack. Skip when a text field is focused so
+            // it keeps its native text-undo.
+            if (e.ctrlKey && !e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
+                const t = e.target.tagName;
+                if (t === 'INPUT' || t === 'TEXTAREA') return;
+                e.preventDefault();
+                this._undoPalette();
             }
         };
         document.addEventListener('keydown', this._onKey);
@@ -1282,16 +1292,36 @@ export class PaletteEditDialog {
     // ── Palette History ────────────────────────────────────────────────
 
     _pushPaletteHistory() {
-        this._paletteHistory.push(this.doc.palette.export());
+        // Snapshot the palette AND pixel data. Palette ops such as X-Swap / Sort
+        // remap pixel indices in place (doc.remapColorIndices), so restoring the
+        // palette alone would leave the pixels remapped and corrupt the image.
+        // Mirror the clone strategy used by open() / _ok() / _cancel().
+        this._paletteHistory.push({
+            palette: this.doc.palette.export(),
+            layers: this.doc.layers.map(l => l.clone(true)),
+            frames: this.doc.animationEnabled ? this.doc.frames.map(f => ({
+                ...f,
+                layerData: f.layerData ? f.layerData.map(ld => ({ ...ld, data: ld.data.slice() })) : null,
+            })) : null,
+        });
         if (this._undoBtn) this._undoBtn.disabled = false;
     }
 
     _undoPalette() {
         if (this._paletteHistory.length === 0) return;
         const prev = this._paletteHistory.pop();
-        this.doc.palette.import(prev);
+        this.doc.palette.import(prev.palette);
+        this.doc.layers = prev.layers;
+        if (prev.frames) {
+            this.doc.frames = prev.frames.map(f => ({
+                ...f,
+                layerData: f.layerData ? f.layerData.map(ld => ({ ...ld, data: ld.data.slice() })) : null,
+            }));
+            this.doc.loadFrame(this.doc.activeFrameIndex);
+        }
         this.updateSwatches();
         this.bus.emit('palette-changed');
+        this.bus.emit('document-changed');
         if (this._undoBtn) this._undoBtn.disabled = this._paletteHistory.length === 0;
     }
 

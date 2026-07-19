@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.6.5] - 2026-07-19
+
+### Fixed
+- **Palette editor undo no longer corrupts pixel data.** The Edit-Palette dialog's own **Undo** button (its local history) only snapshotted the palette, so undoing a remap operation (X-Swap, X-Flip, Sort, Merge/Reduce…) reverted the palette while leaving the pixels remapped — visibly changing the image, and committing the corruption to the document on OK. Local history now snapshots and restores layer pixel data and per-frame data alongside the palette.
+- **Ctrl+Z no longer leaks past an open dialog.** The global shortcut guard keyed on which element held focus, so with focus on `<body>` (e.g. after clicking a swatch) Ctrl+Z ran the global undo on the document *underneath* the open Edit-Palette dialog, desyncing the dialog's before-snapshot from the undo stack. Global shortcuts are now blocked whenever any modal dialog is open, regardless of focus. Ctrl+Z inside the palette dialog now drives the dialog's own palette undo (text fields keep their native undo).
+
 ## [1.6.4] - 2026-07-18
 
 ### Added

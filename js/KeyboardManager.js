@@ -26,7 +26,11 @@ export function _setupKeyboardShortcuts(tools) {
         const aeTag = document.activeElement && document.activeElement.tagName;
         if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
         if (aeTag === 'INPUT' || aeTag === 'TEXTAREA' || aeTag === 'SELECT') return;
-        if (e.target.closest('.palette-dialog-overlay')) return;
+        // Block global shortcuts while a modal dialog is open, regardless of
+        // which element holds focus (focus is often on <body>). Using presence
+        // in the DOM — not e.target.closest — prevents Ctrl+Z from leaking to
+        // the global undo stack and corrupting the doc under an open dialog.
+        if (document.querySelector('.palette-dialog-overlay')) return;
 
         // Arrow keys nudge layer/selection by 1px when Move tool is active.
         // Any other key flushes the pending nudge undo bracket so it doesn't
