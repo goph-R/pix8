@@ -132,6 +132,13 @@ export default class Dialog {
     close() {
         if (this._closed) return;
         this._closed = true;
+        this.dialog.removeEventListener('keydown', this._onKey);
+        // Removing a subtree that still holds focus can leave Chromium's focus
+        // state wedged: later inputs report as activeElement but show no caret
+        // and drop typed characters (backspace still works). Blur first so
+        // focus unwinds to <body> cleanly before the node goes away.
+        const active = document.activeElement;
+        if (active && active.blur && this.overlay.contains(active)) active.blur();
         this.overlay.remove();
         if (this._onClose) this._onClose();
     }

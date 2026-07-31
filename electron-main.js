@@ -61,9 +61,20 @@ app.on('activate', () => {
     if (mainWindow === null) createWindow();
 });
 
+// After a native modal dialog closes, Windows doesn't reliably hand keyboard
+// focus back to the page. The renderer still reports the right activeElement,
+// so inline inputs (tab/layer rename) look focused but show no caret and drop
+// typed characters. Explicitly refocusing the web contents restores input.
+function restoreFocus() {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.focus();
+    }
+}
+
 // IPC handlers for native file dialogs
 ipcMain.handle('show-open-dialog', async (event, options) => {
     const result = await dialog.showOpenDialog(mainWindow, options);
+    restoreFocus();
     if (result.canceled || result.filePaths.length === 0) return null;
     const filePath = result.filePaths[0];
     const data = fs.readFileSync(filePath);
@@ -73,6 +84,7 @@ ipcMain.handle('show-open-dialog', async (event, options) => {
 
 ipcMain.handle('show-save-dialog', async (event, options) => {
     const result = await dialog.showSaveDialog(mainWindow, options);
+    restoreFocus();
     if (result.canceled || !result.filePath) return null;
     return result.filePath;
 });

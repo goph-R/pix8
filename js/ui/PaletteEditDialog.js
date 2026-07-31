@@ -1429,6 +1429,9 @@ export class PaletteEditDialog {
 
     _destroy() {
         document.removeEventListener('keydown', this._onKey);
+        // See Dialog.close(): blur before detaching so focus doesn't get wedged.
+        const active = document.activeElement;
+        if (active && active.blur && this._overlay.contains(active)) active.blur();
         this._overlay.remove();
         this.onClose?.();
     }
