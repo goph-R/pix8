@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.6.6] - 2026-07-31
+
+### Fixed
+- **Typing works again after closing a dialog.** Removing a dialog's DOM subtree while it still held focus left Chromium's focus state wedged: the next inline input (tab rename, layer rename) reported as `document.activeElement` and looked focused, but showed no caret and silently dropped typed characters (backspace still worked). Dialogs now blur the focused element before detaching, so focus unwinds to `<body>` cleanly. Applies to both the shared dialog base class and the Edit-Palette dialog.
+- **Typing works again after a native file dialog (desktop app).** On Windows, Electron's native Open/Save dialogs didn't reliably hand keyboard focus back to the page on close, producing the same dead-input symptom. The main process now explicitly refocuses the window's web contents once the dialog resolves.
+
 ## [1.6.5] - 2026-07-19
 
 ### Fixed
