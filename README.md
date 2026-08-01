@@ -6,6 +6,16 @@ Try it online: https://pix8.app
 
 ![Pix8 Screenshot](screenshot-v1.4.0.png)
 
+## ⬇️ Download
+
+**Windows** — [**Installer** (`Pix8.Setup.1.6.6.exe`)](https://github.com/DynartInteractive/Pix8/releases/download/v1.6.6/Pix8.Setup.1.6.6.exe) · [**Portable** (`Pix8.1.6.6.exe`)](https://github.com/DynartInteractive/Pix8/releases/download/v1.6.6/Pix8.1.6.6.exe)
+
+The installer lets you pick the install directory and adds a desktop shortcut; the portable is a single self-extracting file — run it, no install. Both are **unsigned** for now, so SmartScreen warns on first run (*More info → Run anyway*).
+
+**Linux / macOS** — no prebuilt binaries yet; [build from source](#electron-desktop-app) (`npm run dist:linux` / `dist:mac`).
+
+No download needed to just try it — [pix8.app](https://pix8.app) runs the same editor in the browser. See [all releases](https://github.com/DynartInteractive/Pix8/releases) for other versions.
+
 ## Features
 
 - **256-color indexed palette** -- all 256 entries (0-255) are usable colors, transparency is a separate sentinel value.  
