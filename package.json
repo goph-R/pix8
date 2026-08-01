@@ -46,6 +46,11 @@
         "portable"
       ]
     },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
+    },
     "mac": {
       "target": [
         "dmg"
