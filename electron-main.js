@@ -11,7 +11,15 @@ function createWindow() {
         minWidth: 600,
         minHeight: 400,
         title: 'Pix8',
-        icon: path.join(__dirname, 'icon.png'),
+        // Must be a packaged asset (see build.files) -- build/ holds build
+        // resources and isn't shipped. On packaged Windows this is moot (the
+        // exe carries build/icon.ico); it's what dev runs and Linux use.
+        // Windows gets the .ico so the title bar and taskbar pick the
+        // hand-tuned 16/24/32px entries; pointing at the 512px .png instead
+        // makes Windows downscale it and the small sizes come out mushy.
+        icon: process.platform === 'win32'
+            ? path.join(__dirname, 'images', 'icon-app.ico')
+            : path.join(__dirname, 'images', 'icon-app.png'),
         webPreferences: {
             preload: path.join(__dirname, 'electron-preload.js'),
             contextIsolation: true,
